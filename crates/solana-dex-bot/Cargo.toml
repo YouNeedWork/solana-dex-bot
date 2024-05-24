@@ -15,4 +15,14 @@ spl-associated-token-account = { workspace = true }
 spl-token-2022 = { workspace = true }
 solana-client = { workspace = true }
 solana-sdk = { workspace = true }
+solana-program = { workspace = true }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
+log = "0.4.21"
+env_logger = "=0.9.3"
+jito-protos = { workspace = true }
+jito-searcher-client = { workspace = true }
+tonic = { version = "0.10", features = [
+  "tls",
+  "tls-roots",
+  "tls-webpki-roots",
+] }
