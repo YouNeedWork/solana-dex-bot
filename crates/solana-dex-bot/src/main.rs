@@ -13,15 +13,10 @@ use solana_sdk::{
     signer::SeedDerivable,
 };
 use std::str::FromStr;
-use teloxide::dispatching::dialogue::GetChatId;
 use teloxide::prelude::*;
-use teloxide::types::InlineKeyboardButton;
-use teloxide::types::InlineKeyboardMarkup;
-use teloxide::types::MessageKind;
-use teloxide::types::UpdateKind;
 use teloxide::types::User;
-use teloxide::utils::command::BotCommands;
 
+use bot::SolanaBot;
 use opentelemetry::trace::TracerProvider as _;
 use opentelemetry_sdk::trace::TracerProvider;
 use opentelemetry_stdout as stdout;
@@ -302,56 +297,11 @@ async fn main() -> Result<()> {
         .await;
     */
     //teloxide::enable_logging!();
+
     log::info!("Starting bot...");
-    let telegram_bot = Bot::from_env();
 
-    telegram_bot
-        .set_my_commands(bot::Command::bot_commands())
-        .await
-        .expect("Failed to set commands");
-
-    //teloxide::commands_repl(telegram_bot, bot::answer, bot::Command::ty()).await;
-    bot::Command::repl(telegram_bot, move |bot: Bot, msg: Message, cmd: bot::Command| {
-        log::debug!("Received msg: {:?}", msg);
-        async move {
-
-        let keyboard = InlineKeyboardMarkup::new(vec![
-            vec![InlineKeyboardButton::callback("Help".to_string(), "help".to_string())],
-            vec![InlineKeyboardButton::callback("Ping".to_string(), "ping".to_string())],
-        ]);
-
-        // 每次收到消息都发送内联键盘
-        bot.send_message(msg.chat.id, "")
-            .reply_markup(keyboard)
-            .await?;
-
-        if let MessageKind::NewChatMembers(member) = msg.kind {
-                let user_name = &member
-                    .new_chat_members
-                    .first()
-                    .expect("failed to got user info")
-                .first_name;
-
-                bot.send_message(msg.chat.id, format!("Welcome, {}!", user_name))
-                .await;
-        } else {
-            extract_user(&msg)
-                .map(|user|
-                    log::info!(
-                        "Received message from user id: {}, username: {}, first_name: {}, last_name: {}",
-                        user.id,
-                        user.username.unwrap_or("".to_string()),
-                        user.first_name,
-                        user.last_name.unwrap_or("".to_string())
-                    )
-                );
-
-            bot::answer(bot, msg, cmd).await;
-            }
-            Ok(())
-        }
-    }).await;
-    Ok(())
+    let bot = SolanaBot::new(std::env::var("TELOXIDE_TOKEN").unwrap()).unwrap();
+    bot.run().await
 }
 
 fn extract_user(msg: &Message) -> Option<User> {
