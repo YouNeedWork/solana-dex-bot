@@ -26,3 +26,11 @@ tonic = { version = "0.10", features = [
   "tls-roots",
   "tls-webpki-roots",
 ] }
+
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+opentelemetry-stdout = { workspace = true }
+tracing = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+tracing-subscriber = { workspace = true }
+sentry-tracing = { workspace = true }

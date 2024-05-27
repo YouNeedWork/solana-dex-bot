@@ -13,7 +13,23 @@ use solana_sdk::{
     signer::SeedDerivable,
 };
 use std::str::FromStr;
+use teloxide::dispatching::dialogue::GetChatId;
+use teloxide::prelude::*;
+use teloxide::types::InlineKeyboardButton;
+use teloxide::types::InlineKeyboardMarkup;
+use teloxide::types::MessageKind;
+use teloxide::types::UpdateKind;
+use teloxide::types::User;
+use teloxide::utils::command::BotCommands;
 
+use opentelemetry::trace::TracerProvider as _;
+use opentelemetry_sdk::trace::TracerProvider;
+use opentelemetry_stdout as stdout;
+use tracing::{error, span};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::Registry;
+
+mod bot;
 mod config;
 mod jito;
 
@@ -117,7 +133,27 @@ pub async fn handle_token_account(
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Create a new OpenTelemetry trace pipeline that prints to stdout
+    let provider = TracerProvider::builder()
+        .with_simple_exporter(stdout::SpanExporter::default())
+        .build();
+    let tracer = provider.tracer("readme_example");
+
+    // Create a tracing layer with the configured tracer
+    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
+
+    // Use the tracing subscriber `Registry`, or any other subscriber
+    // that impls `LookupSpan`
+    let subscriber = Registry::default().with(telemetry);
+    //subscriber.into();
+    tracing::subscriber::set_global_default(subscriber).expect("setting default subscriber failed");
+
     //let _cfg = config::Config::parse();
+    // Spans will be sent to the configured OpenTelemetry exporter
+    let root = span!(tracing::Level::TRACE, "app_start", work_units = 2);
+    let _enter = root.enter();
+
+    error!("This event will be logged in the root span.");
 
     //let key = Keypair::new();
     let wallet = Keypair::from_seed(&[
@@ -253,9 +289,9 @@ async fn main() -> Result<()> {
     let sim_res = client.simulate_transaction(&tx).await?;
     println!("sim_res {:?}", &sim_res);
     //jito::send_swap_tx([tx], 50000, &wallet.pubkey(), searcher_client, &client);
-    let res = client.send_and_confirm_transaction(&tx).await?;
+    //let res = client.send_and_confirm_transaction(&tx).await?;
 
-    println!("{:?}", res);
+    //println!("{:?}", res);
 
     /*
         let bot = Bot::from_env();
@@ -265,5 +301,62 @@ async fn main() -> Result<()> {
         })
         .await;
     */
+    //teloxide::enable_logging!();
+    log::info!("Starting bot...");
+    let telegram_bot = Bot::from_env();
+
+    telegram_bot
+        .set_my_commands(bot::Command::bot_commands())
+        .await
+        .expect("Failed to set commands");
+
+    //teloxide::commands_repl(telegram_bot, bot::answer, bot::Command::ty()).await;
+    bot::Command::repl(telegram_bot, move |bot: Bot, msg: Message, cmd: bot::Command| {
+        log::debug!("Received msg: {:?}", msg);
+        async move {
+
+        let keyboard = InlineKeyboardMarkup::new(vec![
+            vec![InlineKeyboardButton::callback("Help".to_string(), "help".to_string())],
+            vec![InlineKeyboardButton::callback("Ping".to_string(), "ping".to_string())],
+        ]);
+
+        // 每次收到消息都发送内联键盘
+        bot.send_message(msg.chat.id, "")
+            .reply_markup(keyboard)
+            .await?;
+
+        if let MessageKind::NewChatMembers(member) = msg.kind {
+                let user_name = &member
+                    .new_chat_members
+                    .first()
+                    .expect("failed to got user info")
+                .first_name;
+
+                bot.send_message(msg.chat.id, format!("Welcome, {}!", user_name))
+                .await;
+        } else {
+            extract_user(&msg)
+                .map(|user|
+                    log::info!(
+                        "Received message from user id: {}, username: {}, first_name: {}, last_name: {}",
+                        user.id,
+                        user.username.unwrap_or("".to_string()),
+                        user.first_name,
+                        user.last_name.unwrap_or("".to_string())
+                    )
+                );
+
+            bot::answer(bot, msg, cmd).await;
+            }
+            Ok(())
+        }
+    }).await;
     Ok(())
+}
+
+fn extract_user(msg: &Message) -> Option<User> {
+    match &msg.kind {
+        teloxide::types::MessageKind::Common(mc) => mc.from.clone(),
+        _ => None,
+    }
 }

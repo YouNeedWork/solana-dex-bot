@@ -3,11 +3,11 @@ members = ["crates/solana-dex-bot", "crates/workspace-hack"]
 resolver = "2"
 
 [workspace.dependencies]
+tokio = { version = "1", features = ["full"] }
 anyhow = "1.0.86"
 clap = { version = "4.5.4", features = ["derive", "env"] }
 teloxide = { version = "0.12.2", features = ["full"] }
 thiserror = "1.0.61"
-tokio = { version = "1.37.0", features = ["full"] }
 spl-token = { version = "4.0.0", features = ["no-entrypoint"] }
 spl-associated-token-account = { version = "2.2.0", features = [
   "no-entrypoint",
@@ -27,6 +27,13 @@ raydium_amm = { git = "https://github.com/piotrostr/raydium-amm", default-featur
 #jito-protos = { git = "https://github.com/piotrostr/searcher-examples", version = "0.1.0" }
 jito-searcher-client = { path = "../searcher-examples/searcher_client/" }
 jito-protos = { path = "../searcher-examples/jito_protos/" }
+opentelemetry = "0.21"
+opentelemetry_sdk = "0.21"
+opentelemetry-stdout = { version = "0.2.0", features = ["trace"] }
+tracing = "0.1"
+tracing-opentelemetry = "0.22"
+tracing-subscriber = "0.3"
+sentry-tracing = "0.32.3"
 
 
 [replace]
