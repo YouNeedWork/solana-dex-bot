@@ -23,10 +23,8 @@ raydium_amm = { git = "https://github.com/piotrostr/raydium-amm", default-featur
   "client",
 ] }
 
-#jito-searcher-client = { git = "https://github.com/piotrostr/searcher-examples", version = "0.1.0" }
-#jito-protos = { git = "https://github.com/piotrostr/searcher-examples", version = "0.1.0" }
-jito-searcher-client = { path = "../searcher-examples/searcher_client/" }
-jito-protos = { path = "../searcher-examples/jito_protos/" }
+jito-searcher-client = { git = "https://github.com/YusongWang/searcher-examples" }
+jito-protos = { git = "https://github.com/YusongWang/searcher-examples" }
 opentelemetry = "0.21"
 opentelemetry_sdk = "0.21"
 opentelemetry-stdout = { version = "0.2.0", features = ["trace"] }
