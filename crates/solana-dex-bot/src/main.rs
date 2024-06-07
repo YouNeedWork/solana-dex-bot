@@ -282,14 +282,14 @@ async fn main() -> Result<()> {
     //let searcher_client = "";
     let tx = VersionedTransaction::from(tx);
     let sim_res = client.simulate_transaction(&tx).await?;
-    println!("sim_res {:?}", &sim_res);
     //jito::send_swap_tx([tx], 50000, &wallet.pubkey(), searcher_client, &client);
     //let res = client.send_and_confirm_transaction(&tx).await?;
 
     //println!("{:?}", res);
 
     /*
-        let bot = Bot::from_env();
+    let bot = Bot::from_env();
+    println!("sim_res {:?}", &sim_res);
         teloxide::repl(bot, |bot: Bot, msg: Message| async move {
             bot.send_dice(msg.chat.id).await?;
             Ok(())

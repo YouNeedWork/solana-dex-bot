@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/solana-dex-bot", "crates/workspace-hack"]
+members = ["crates/models", "crates/solana", "crates/solana-dex-bot", "crates/workspace-hack"]
 resolver = "2"
 
 [workspace.dependencies]
@@ -32,6 +32,16 @@ tracing = "0.1"
 tracing-opentelemetry = "0.22"
 tracing-subscriber = "0.3"
 sentry-tracing = "0.32.3"
+diesel = { version = "2.1.6", features = [
+  "r2d2",
+  "postgres",
+  "numeric",
+  "serde_json",
+  "chrono",
+] }
+serde_json = "1.0"
+serde = "1.0.0"
+chrono = { version = "0.4", features = ["serde"] }
 
 
 [replace]
