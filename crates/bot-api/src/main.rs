@@ -51,6 +51,8 @@ async fn main() {
     let app = Router::new()
         // `GET /` goes to `root`
         .route("/", get(root))
+        .route("/wallet", get(wallet))
+        .route("/orders", get(orders))
         .layer(cors)
         .layer(Extension(app_state));
 
@@ -63,5 +65,27 @@ async fn main() {
 
 #[instrument(name = "root")]
 async fn root() -> &'static str {
+    "Hello, World!"
+}
+
+#[instrument(name = "wallet")]
+async fn wallet() -> &'static str {
+    // user_id
+    "Hello, World!"
+}
+
+#[instrument(name = "orders")]
+async fn orders() -> &'static str {
+    //req: user_id
+    //
+    //res: orders table data
+    "Hello, World!"
+}
+
+#[instrument(name = "swap")]
+async fn swap() -> &'static str {
+    //req: user_id,
+    //ca: Token contract address,
+    //amount: amount to buy or sell,
     "Hello, World!"
 }
