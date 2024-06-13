@@ -5,10 +5,13 @@ use http::Method;
 use std::sync::Arc;
 use tower_http::cors::{any, CorsLayer};
 use tracing::info;
+
 mod orders;
 mod swap;
 mod wallet;
+
 type PGPool = Pool<ConnectionManager<PgConnection>>;
+
 pub struct AppState {
     db: PGPool,
 }
@@ -28,6 +31,7 @@ pub async fn start_server() {
     let cors = CorsLayer::new()
         .allow_methods(vec![Method::GET, Method::POST])
         .allow_origin(any());
+
     let app = Router::new()
         .route("/wallet", get(wallet::wallet))
         .route("/orders", get(orders::orders))

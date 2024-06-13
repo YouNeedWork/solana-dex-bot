@@ -3,7 +3,7 @@ members = [
   "crates/bot-api",
   "crates/models",
   "crates/solana",
-  "crates/solana-dex-bot",
+  "crates/solana-bot",
   "crates/workspace-hack",
 ]
 resolver = "2"

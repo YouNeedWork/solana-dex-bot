@@ -4,6 +4,7 @@ use opentelemetry_stdout as stdout;
 
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::Registry;
+
 pub fn subscriber_telemetry() {
     // Create a new OpenTelemetry trace pipeline that prints to stdout
     let provider = TracerProvider::builder()
