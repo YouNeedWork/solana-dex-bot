@@ -1,21 +1,37 @@
 use axum::{extract::Extension, routing::get, Json, Router};
+use diesel::pg::PgConnection;
+use diesel::r2d2::{ConnectionManager, Pool};
 use http::Method;
 use std::sync::Arc;
 use tower_http::cors::{any, CorsLayer};
 use tracing::info;
-use tracing::instrument;
+mod orders;
+mod swap;
+mod wallet;
+type PGPool = Pool<ConnectionManager<PgConnection>>;
+pub struct AppState {
+    db: PGPool,
+}
 
-use crate::AppState;
+fn get_app_state() -> Arc<AppState> {
+    let manager = ConnectionManager::<PgConnection>::new(std::env::var("DATABASE_URL").unwrap());
+    let db = diesel::r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool");
 
-pub async fn start_server(app_state: Arc<AppState>) {
+    let app_state: Arc<AppState> = Arc::new(AppState { db });
+    return app_state;
+}
+
+pub async fn start_server() {
+    let app_state = get_app_state();
     let cors = CorsLayer::new()
         .allow_methods(vec![Method::GET, Method::POST])
         .allow_origin(any());
     let app = Router::new()
-        // `GET /` goes to `root`
-        .route("/", get(root))
-        .route("/wallet", get(wallet))
-        .route("/orders", get(orders))
+        .route("/wallet", get(wallet::wallet))
+        .route("/orders", get(orders::orders))
+        .route("/swap", get(swap::swap))
         .layer(cors)
         .layer(Extension(app_state));
 
@@ -24,31 +40,4 @@ pub async fn start_server(app_state: Arc<AppState>) {
     // run our app with hyper, listening globally on port 3000
     let listener = tokio::net::TcpListener::bind(bind).await.unwrap();
     axum::serve(listener, app).await.unwrap();
-}
-
-#[instrument(name = "root")]
-async fn root() -> &'static str {
-    "Hello, World!"
-}
-
-#[instrument(name = "wallet")]
-async fn wallet() -> &'static str {
-    // user_id
-    "Hello, World!"
-}
-
-#[instrument(name = "orders")]
-async fn orders() -> &'static str {
-    //req: user_id
-    //
-    //res: orders table data
-    "Hello, World!"
-}
-
-#[instrument(name = "swap")]
-async fn swap() -> &'static str {
-    //req: user_id,
-    //ca: Token contract address,
-    //amount: amount to buy or sell,
-    "Hello, World!"
 }
