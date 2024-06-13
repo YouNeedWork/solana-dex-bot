@@ -14,13 +14,16 @@ publish = false
 
 ### BEGIN HAKARI SECTION
 [dependencies]
-ahash = { version = "0.8" }
+ahash-c38e5c1d305a1b54 = { package = "ahash", version = "0.8" }
+ahash-ca01ad9e24f5d932 = { package = "ahash", version = "0.7" }
 bitflags = { version = "1" }
+bytemuck = { version = "1", default-features = false, features = ["derive", "min_const_generics"] }
 byteorder = { version = "1", features = ["i128"] }
 crossbeam-utils = { version = "0.8" }
 crunchy = { version = "0.2", features = ["std"] }
 digest-274715c4dabd11b0 = { package = "digest", version = "0.9", default-features = false, features = ["std"] }
 digest-93f6ce9d446188ac = { package = "digest", version = "0.10", features = ["mac", "std"] }
+either = { version = "1" }
 futures-channel = { version = "0.3", features = ["sink"] }
 futures-sink = { version = "0.3" }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
@@ -28,19 +31,32 @@ generic-array = { version = "0.14", default-features = false, features = ["more_
 getrandom = { version = "0.2", default-features = false, features = ["custom", "std"] }
 hashbrown = { version = "0.14", features = ["raw"] }
 indexmap = { version = "1", default-features = false, features = ["std"] }
+itertools = { version = "0.12" }
 libc = { version = "0.2", features = ["extra_traits"] }
 libsecp256k1-core = { version = "0.2" }
 log = { version = "0.4", default-features = false, features = ["std"] }
 memchr = { version = "2", features = ["use_std"] }
+num-integer = { version = "0.1", features = ["i128"] }
 num-traits = { version = "0.2", features = ["i128"] }
+prost = { version = "0.12", features = ["prost-derive"] }
+prost-types = { version = "0.12" }
+regex = { version = "1" }
+regex-automata = { version = "0.4", default-features = false, features = ["dfa-onepass", "hybrid", "meta", "nfa-backtrack", "perf-inline", "perf-literal", "unicode"] }
+regex-syntax = { version = "0.8" }
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "brotli", "deflate", "gzip", "json", "multipart", "native-tls", "rustls-tls", "stream"] }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = { version = "1", features = ["raw_value"] }
 sqlx-core = { version = "0.6", default-features = false, features = ["any", "runtime-tokio-native-tls", "sqlite"] }
 tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["fs"] }
+tracing = { version = "0.1", features = ["log"] }
+tracing-core = { version = "0.1" }
+unicode-bidi = { version = "0.3" }
 url = { version = "2", features = ["serde"] }
 
 [build-dependencies]
-ahash = { version = "0.8" }
+ahash-c38e5c1d305a1b54 = { package = "ahash", version = "0.8" }
+ahash-ca01ad9e24f5d932 = { package = "ahash", version = "0.7" }
 bitflags = { version = "1" }
 byteorder = { version = "1", features = ["i128"] }
 cc = { version = "1", default-features = false, features = ["parallel"] }
@@ -48,6 +64,7 @@ crossbeam-utils = { version = "0.8" }
 crunchy = { version = "0.2", features = ["std"] }
 digest-274715c4dabd11b0 = { package = "digest", version = "0.9", default-features = false, features = ["std"] }
 digest-93f6ce9d446188ac = { package = "digest", version = "0.10", features = ["mac", "std"] }
+either = { version = "1" }
 futures-channel = { version = "0.3", features = ["sink"] }
 futures-sink = { version = "0.3" }
 futures-util = { version = "0.3", features = ["channel", "io", "sink"] }
@@ -55,17 +72,26 @@ generic-array = { version = "0.14", default-features = false, features = ["more_
 getrandom = { version = "0.2", default-features = false, features = ["custom", "std"] }
 hashbrown = { version = "0.14", features = ["raw"] }
 indexmap = { version = "1", default-features = false, features = ["std"] }
+itertools = { version = "0.12" }
 libc = { version = "0.2", features = ["extra_traits"] }
 libsecp256k1-core = { version = "0.2" }
 log = { version = "0.4", default-features = false, features = ["std"] }
 memchr = { version = "2", features = ["use_std"] }
 num-traits = { version = "0.2", features = ["i128"] }
-proc-macro2 = { version = "1", features = ["span-locations"] }
+proc-macro2-9fbad63c4bcf4a8f = { package = "proc-macro2", version = "0.4" }
+proc-macro2-dff4ba8e3ae991db = { package = "proc-macro2", version = "1", features = ["span-locations"] }
+prost = { version = "0.12", features = ["prost-derive"] }
+prost-types = { version = "0.12" }
+regex = { version = "1" }
+regex-automata = { version = "0.4", default-features = false, features = ["dfa-onepass", "hybrid", "meta", "nfa-backtrack", "perf-inline", "perf-literal", "unicode"] }
+regex-syntax = { version = "0.8" }
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = { version = "1", features = ["raw_value"] }
 sqlx-core = { version = "0.6", default-features = false, features = ["any", "runtime-tokio-native-tls", "sqlite"] }
-syn = { version = "2", features = ["extra-traits", "full", "visit", "visit-mut"] }
+syn = { version = "2", features = ["extra-traits", "fold", "full", "visit", "visit-mut"] }
 tokio = { version = "1", features = ["full"] }
+tokio-stream = { version = "0.1", features = ["fs"] }
+unicode-bidi = { version = "0.3" }
 url = { version = "2", features = ["serde"] }
 
 ### END HAKARI SECTION
