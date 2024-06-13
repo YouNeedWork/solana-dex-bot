@@ -1,3 +1,4 @@
+use axum::routing::post;
 use axum::{extract::Extension, routing::get, Json, Router};
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
@@ -34,6 +35,7 @@ pub async fn start_server() {
 
     let app = Router::new()
         .route("/wallet", get(wallet::wallet))
+        .route("/wallet/import", post(wallet::import_wallet))
         .route("/orders", get(orders::orders))
         .route("/swap", get(swap::swap))
         .layer(cors)
