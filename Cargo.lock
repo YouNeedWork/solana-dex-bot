@@ -4887,15 +4887,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "solana-client",
- "solana-sdk",
-]
-
-[[package]]
 name = "solana-account-decoder"
 version = "1.16.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4938,6 +4929,37 @@ dependencies = [
  "solana-program-runtime",
  "solana-sdk",
  "thiserror",
+]
+
+[[package]]
+name = "solana-bot"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.5.7",
+ "env_logger",
+ "jito-protos",
+ "jito-searcher-client",
+ "log",
+ "opentelemetry",
+ "opentelemetry-stdout",
+ "opentelemetry_sdk",
+ "raydium-library",
+ "sentry-tracing",
+ "solana-client",
+ "solana-core",
+ "solana-program",
+ "solana-sdk",
+ "spl-associated-token-account 2.2.0",
+ "spl-token 4.0.0",
+ "spl-token-2022 0.9.0",
+ "teloxide",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-opentelemetry",
+ "tracing-subscriber",
+ "workspace-hack",
 ]
 
 [[package]]
@@ -5027,34 +5049,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-dex-bot"
+name = "solana-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.7",
- "env_logger",
  "jito-protos",
  "jito-searcher-client",
- "log",
- "opentelemetry",
- "opentelemetry-stdout",
- "opentelemetry_sdk",
  "raydium-library",
- "sentry-tracing",
  "solana-client",
  "solana-program",
  "solana-sdk",
  "spl-associated-token-account 2.2.0",
  "spl-token 4.0.0",
  "spl-token-2022 0.9.0",
- "teloxide",
- "thiserror",
  "tokio",
  "tonic",
  "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
- "workspace-hack",
 ]
 
 [[package]]

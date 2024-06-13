@@ -1,5 +1,5 @@
 [package]
-name = "solana-dex-bot"
+name = "solana-bot"
 version = "0.1.0"
 edition = "2021"
 
@@ -21,12 +21,7 @@ log = "0.4.21"
 env_logger = "=0.9.3"
 jito-protos = { workspace = true }
 jito-searcher-client = { workspace = true }
-tonic = { version = "0.10", features = [
-  "tls",
-  "tls-roots",
-  "tls-webpki-roots",
-] }
-
+solana-core = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 opentelemetry-stdout = { workspace = true }

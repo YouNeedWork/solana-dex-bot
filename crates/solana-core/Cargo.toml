@@ -1,0 +1,23 @@
+[package]
+name = "solana-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { workspace = true }
+solana-sdk = { workspace = true }
+solana-client = { workspace = true }
+anyhow = { workspace = true }
+raydium-library = { workspace = true }
+solana-program = { workspace = true }
+tracing = { workspace = true }
+spl-token = { workspace = true }
+spl-associated-token-account = { workspace = true }
+spl-token-2022 = { workspace = true }
+jito-searcher-client = { workspace = true }
+jito-protos = { workspace = true }
+tonic = { version = "0.10", features = [
+  "tls",
+  "tls-roots",
+  "tls-webpki-roots",
+] }

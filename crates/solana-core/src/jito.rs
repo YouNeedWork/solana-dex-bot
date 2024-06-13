@@ -5,7 +5,6 @@ use jito_protos::searcher::searcher_service_client::SearcherServiceClient;
 use jito_protos::searcher::{NextScheduledLeaderRequest, SubscribeBundleResultsRequest};
 use jito_searcher_client::send_bundle_with_confirmation;
 use jito_searcher_client::token_authenticator::ClientInterceptor;
-use log::{error, info};
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
@@ -14,6 +13,7 @@ use solana_sdk::system_instruction::transfer;
 use solana_sdk::transaction::Transaction;
 use solana_sdk::{instruction::Instruction, transaction::VersionedTransaction};
 use tonic::{codegen::InterceptedService, transport::Channel};
+use tracing::{error, info};
 
 pub type SearcherClient = SearcherServiceClient<InterceptedService<Channel, ClientInterceptor>>;
 

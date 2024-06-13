@@ -2,10 +2,11 @@
 members = [
   "crates/bot-api",
   "crates/models",
-  "crates/solana",
+  "crates/solana-core",
   "crates/solana-bot",
   "crates/workspace-hack",
 ]
+
 resolver = "2"
 
 [workspace.dependencies]
@@ -46,6 +47,7 @@ diesel = { version = "2.1.6", features = [
 serde_json = "1.0"
 serde = "1.0.0"
 chrono = { version = "0.4", features = ["serde"] }
+solana-core = { path = "crates/solana-core" }
 
 
 [replace]
