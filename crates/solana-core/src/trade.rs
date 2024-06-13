@@ -3,25 +3,26 @@ use anyhow::Result;
 use raydium_library::amm;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_client::rpc_request::TokenAccountsFilter;
-use solana_program::message::Message as SolMessage;
 use solana_sdk::instruction::Instruction;
 use solana_sdk::program_pack::Pack;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signer::{keypair::Keypair, Signer};
-use solana_sdk::transaction::Transaction;
-use solana_sdk::transaction::VersionedTransaction;
 use spl_token::state::Account;
 use std::str::FromStr;
+use std::sync::Arc;
 use tracing::trace;
 
 pub struct Trade {
-    pub keypair: Keypair,
+    pub keypair: Arc<Keypair>,
     pub rpc: RpcClient,
 }
 
 impl Trade {
     pub fn new(keypair: Keypair, rpc: RpcClient) -> Self {
-        Self { keypair, rpc }
+        Self {
+            keypair: Arc::new(keypair),
+            rpc,
+        }
     }
 
     pub async fn get_balance(&self) -> Result<u64> {
@@ -152,7 +153,7 @@ impl Trade {
         println!("{:?}", build_swap_instruction);
 
         let blockhash = self.rpc.get_latest_blockhash().await?;
-        let txs = [
+        let mut txs = [
             make_compute_budget_ixs(0, 300_000),
             swap.pre_swap_instructions.clone(),
             vec![build_swap_instruction],
@@ -160,7 +161,9 @@ impl Trade {
         ]
         .concat();
 
+        /*
         dbg!(&txs);
+
         let mut message = SolMessage::new(&txs, Some(&self.keypair.pubkey()));
         message.recent_blockhash = blockhash;
 
@@ -174,9 +177,18 @@ impl Trade {
         let sim_res = self.rpc.simulate_transaction(&tx).await?;
         dbg!(sim_res);
         //jito::send_swap_tx([tx], 50000, &self.keypair, searcher_client, &self.rpc);
-
         let res = self.rpc.send_and_confirm_transaction(&tx).await?;
+        dbg!(res);
+        */
 
+        let mut jito_client = jito::get_searcher_client(
+            &"https://frankfurt.mainnet.block-engine.jito.wtf",
+            &self.keypair.clone(),
+        )
+        .await?;
+
+        let res =
+            jito::send_swap_tx(&mut txs, 50000, &self.keypair, &mut jito_client, &self.rpc).await?;
         dbg!(res);
 
         Ok("hello".to_string())

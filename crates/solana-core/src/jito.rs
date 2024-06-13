@@ -1,10 +1,14 @@
-use std::str::FromStr;
-use std::time::Duration;
-
+use anyhow::Result;
+use jito_protos::auth::{auth_service_client::AuthServiceClient, Role};
 use jito_protos::searcher::searcher_service_client::SearcherServiceClient;
 use jito_protos::searcher::{NextScheduledLeaderRequest, SubscribeBundleResultsRequest};
 use jito_searcher_client::send_bundle_with_confirmation;
 use jito_searcher_client::token_authenticator::ClientInterceptor;
+use jito_searcher_client::BlockEngineConnectionResult;
+use std::str::FromStr;
+use std::time::Duration;
+use tonic::transport::Endpoint;
+
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
@@ -12,10 +16,38 @@ use solana_sdk::signer::Signer;
 use solana_sdk::system_instruction::transfer;
 use solana_sdk::transaction::Transaction;
 use solana_sdk::{instruction::Instruction, transaction::VersionedTransaction};
+use std::sync::Arc;
 use tonic::{codegen::InterceptedService, transport::Channel};
 use tracing::{error, info};
 
 pub type SearcherClient = SearcherServiceClient<InterceptedService<Channel, ClientInterceptor>>;
+
+pub async fn get_searcher_client(
+    block_engine_url: &str,
+    auth_keypair: &Arc<Keypair>,
+) -> Result<SearcherClient> {
+    let auth_channel = create_grpc_channel(block_engine_url).await?;
+    let client_interceptor = ClientInterceptor::new(
+        AuthServiceClient::new(auth_channel),
+        auth_keypair,
+        Role::Searcher,
+    )
+    .await?;
+
+    let searcher_channel = create_grpc_channel(block_engine_url).await?;
+    let searcher_client =
+        SearcherServiceClient::with_interceptor(searcher_channel, client_interceptor);
+
+    Ok(searcher_client)
+}
+
+pub async fn create_grpc_channel(url: &str) -> BlockEngineConnectionResult<Channel> {
+    let mut endpoint = Endpoint::from_shared(url.to_string()).expect("invalid url");
+    if url.starts_with("https") {
+        endpoint = endpoint.tls_config(tonic::transport::ClientTlsConfig::new())?;
+    }
+    Ok(endpoint.connect().await?)
+}
 
 pub async fn wait_leader(
     searcher_client: &mut SearcherClient,
@@ -49,7 +81,7 @@ pub async fn send_swap_tx(
     payer: &Keypair,
     searcher_client: &mut SearcherClient,
     rpc_client: &RpcClient,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<()> {
     let mut bundle_results_subscription = searcher_client
         .subscribe_bundle_results(SubscribeBundleResultsRequest {})
         .await
@@ -82,4 +114,5 @@ pub async fn send_swap_tx(
         &mut bundle_results_subscription,
     )
     .await
+    .map_err(|e| anyhow::format_err!("{:?}", e))
 }
