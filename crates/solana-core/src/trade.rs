@@ -1,4 +1,4 @@
-use crate::{constants, jito};
+use crate::{constants, dexscreen, jito};
 use anyhow::Result;
 use raydium_library::amm;
 use solana_client::nonblocking::rpc_client::RpcClient;
@@ -66,26 +66,28 @@ impl Trade {
         slippage_bps: u64,
         tip: u64,
     ) -> Result<()> {
-        if self.check_is_token_addr(token_in) {
+        if !self.check_is_token_addr(token_in) {
             anyhow::bail!("token_in is not correct address");
         }
 
-        if self.check_is_token_addr(token_out) {
+        if !self.check_is_token_addr(token_out) {
             anyhow::bail!("token_out is not correct address");
         }
 
-        /*
-        let input_token_mint = Pubkey::from_str("So11111111111111111111111111111111111111112")?;
-        let output_token_mint = Pubkey::from_str("E3ZELac8ywEmt5WL5WVncrCXPePSoZuwaQ7rqJDTxs8M")?;
-        */
-        let amm_program = Pubkey::from_str(constants::RAYDIUM_AMM_PUBKEY)?;
+        let dex_info = if token_in == constants::SOLANA_PROGRAM_ID {
+            dexscreen::search(token_out).await?
+        } else {
+            dexscreen::search(token_in).await?
+        };
 
-        let amm_pool_id = Pubkey::from_str("H6iiLoyfQg4GXATaRUwgJqTj7a7NStKjKEiDPqafvrMg")?;
+        anyhow::ensure!(dex_info.pairs.len() != 0, "can't find pair info");
+        let pair = dex_info.pairs.first().unwrap();
+
+        let amm_program = Pubkey::from_str(constants::RAYDIUM_LIQUIDITY_POOL_V4_PUBKEY)?;
+        let amm_pool_id = Pubkey::from_str(&pair.pair_address)?;
 
         let input_token_mint = Pubkey::from_str(token_in)?;
         let output_token_mint = Pubkey::from_str(token_out)?;
-
-        let amount_specified = 42000000u64;
 
         let swap_base_in = true;
         let amm_keys = amm::utils::load_amm_keys(&self.rpc, &amm_program, &amm_pool_id).await?;
@@ -210,6 +212,7 @@ impl Trade {
         let mut jito_client =
             jito::get_searcher_client(&"https://frankfurt.mainnet.block-engine.jito.wtf").await?;
         jito::send_swap_tx(&mut txs, tip, &self.keypair, &mut jito_client, &self.rpc).await?;
+
         Ok(())
     }
 }

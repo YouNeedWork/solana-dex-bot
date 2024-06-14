@@ -86,14 +86,14 @@ pub struct H24 {
 pub struct Volume {
     pub h24: f64,
     pub h6: f64,
-    pub h1: i64,
-    pub m5: i64,
+    pub h1: f64,
+    pub m5: f64,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PriceChange {
-    pub m5: i64,
+    pub m5: f64,
     pub h1: f64,
     pub h6: f64,
     pub h24: f64,
@@ -102,8 +102,8 @@ pub struct PriceChange {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Liquidity {
-    pub usd: i64,
-    pub base: i64,
+    pub usd: f64,
+    pub base: f64,
     pub quote: f64,
 }
 

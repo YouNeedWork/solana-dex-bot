@@ -5,8 +5,8 @@ edition = "2021"
 
 [dependencies]
 reqwest = { workspace = true }
-serde = { workspac = true }
-serde_json = { workspac = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }
 solana-client = { workspace = true }

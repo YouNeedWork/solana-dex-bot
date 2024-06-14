@@ -29,3 +29,4 @@ tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
 sentry-tracing = { workspace = true }
+rust-i18n = "3"

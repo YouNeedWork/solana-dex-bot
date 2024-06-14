@@ -1,5 +1,7 @@
-use anyhow::Result;
+#[macro_use]
+extern crate rust_i18n;
 
+use anyhow::Result;
 use solana_client::nonblocking::rpc_client::RpcClient;
 use solana_core::trade::Trade;
 use solana_sdk::{
@@ -7,11 +9,14 @@ use solana_sdk::{
     signer::SeedDerivable,
 };
 
+use rust_i18n::t;
 use solana_sdk::pubkey::Pubkey;
 use std::str::FromStr;
 
 mod bot;
 mod config;
+
+rust_i18n::i18n!("locales");
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -23,6 +28,7 @@ async fn main() -> Result<()> {
     .unwrap();
 
     println!("私钥: {:?}", wallet.secret());
+    println!("私钥: {:?}", wallet.to_base58_string());
     println!("公钥: {:?}", wallet.pubkey());
 
     let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
@@ -35,7 +41,20 @@ async fn main() -> Result<()> {
 
     println!("balance: {:?} ", amount);
 
-    trade.swap(&"1", &"1", amount, 80, 5000).await?;
+    println!("{}", t!("hello"));
+    println!("{}", t!("hello", locale = "zh-CN"));
+
+    /*
+    trade
+        .swap(
+            &"E3ZELac8ywEmt5WL5WVncrCXPePSoZuwaQ7rqJDTxs8M",
+            solana_core::constants::SOLANA_PROGRAM_ID,
+            amount,
+            80,
+            5000,
+        )
+        .await?;
+    */
 
     Ok(())
 }

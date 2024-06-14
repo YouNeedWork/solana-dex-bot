@@ -1,20 +1,12 @@
 use anyhow::Result;
 use std::error::Error;
-use teloxide::dispatching::dialogue::GetChatId;
 use teloxide::prelude::*;
-use teloxide::prelude::*;
-use teloxide::types::ChatKind;
 use teloxide::types::InlineKeyboardButton;
 use teloxide::types::InlineKeyboardMarkup;
-use teloxide::types::InlineQueryResult;
 use teloxide::types::InlineQueryResultArticle;
 use teloxide::types::InputMessageContent;
 use teloxide::types::InputMessageContentText;
 use teloxide::types::Me;
-use teloxide::types::MessageKind;
-use teloxide::types::ParseMode;
-use teloxide::types::UpdateKind;
-use teloxide::types::User;
 use teloxide::utils::command::BotCommands;
 use teloxide::Bot;
 use tracing::info;
@@ -32,7 +24,7 @@ impl SolanaBot {
     }
 
     pub async fn run(self) -> Result<()> {
-        let SolanaBot { bot, admin_id } = self;
+        let SolanaBot { bot, admin_id: _ } = self;
 
         let handler = dptree::entry()
             .branch(Update::filter_message().endpoint(message_handler))
