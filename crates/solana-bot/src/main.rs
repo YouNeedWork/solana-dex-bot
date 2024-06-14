@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
 
     println!("balance: {:?} ", amount);
 
-    trade.swap(&"1", &"1").await?;
+    trade.swap(&"1", &"1", amount, 80, 5000).await?;
 
     Ok(())
 }

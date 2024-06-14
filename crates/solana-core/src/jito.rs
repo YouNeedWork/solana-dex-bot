@@ -1,9 +1,7 @@
 use anyhow::Result;
-use jito_protos::auth::{auth_service_client::AuthServiceClient, Role};
 use jito_protos::searcher::searcher_service_client::SearcherServiceClient;
 use jito_protos::searcher::{NextScheduledLeaderRequest, SubscribeBundleResultsRequest};
 use jito_searcher_client::send_bundle_with_confirmation;
-use jito_searcher_client::token_authenticator::ClientInterceptor;
 use jito_searcher_client::BlockEngineConnectionResult;
 use std::str::FromStr;
 use std::time::Duration;
@@ -16,28 +14,16 @@ use solana_sdk::signer::Signer;
 use solana_sdk::system_instruction::transfer;
 use solana_sdk::transaction::Transaction;
 use solana_sdk::{instruction::Instruction, transaction::VersionedTransaction};
-use std::sync::Arc;
-use tonic::{codegen::InterceptedService, transport::Channel};
+use tonic::transport::Channel;
 use tracing::{error, info};
 
-pub type SearcherClient = SearcherServiceClient<InterceptedService<Channel, ClientInterceptor>>;
+use crate::constants;
 
-pub async fn get_searcher_client(
-    block_engine_url: &str,
-    auth_keypair: &Arc<Keypair>,
-) -> Result<SearcherClient> {
-    let auth_channel = create_grpc_channel(block_engine_url).await?;
-    let client_interceptor = ClientInterceptor::new(
-        AuthServiceClient::new(auth_channel),
-        auth_keypair,
-        Role::Searcher,
-    )
-    .await?;
+pub type SearcherClient = SearcherServiceClient<Channel>;
 
+pub async fn get_searcher_client(block_engine_url: &str) -> Result<SearcherServiceClient<Channel>> {
     let searcher_channel = create_grpc_channel(block_engine_url).await?;
-    let searcher_client =
-        SearcherServiceClient::with_interceptor(searcher_channel, client_interceptor);
-
+    let searcher_client = SearcherServiceClient::new(searcher_channel);
     Ok(searcher_client)
 }
 
@@ -96,7 +82,7 @@ pub async fn send_swap_tx(
     // push tip ix
     ixs.push(transfer(
         &payer.pubkey(),
-        &Pubkey::from_str("Cw8CFyM9FkoMi7K7Crf6HNQqf4uEMzpKw6QNghXLvLkY")?,
+        &Pubkey::from_str(constants::JITO_TIP_PUBKEY)?,
         tip,
     ));
 

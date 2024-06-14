@@ -45,7 +45,8 @@ diesel = { version = "2.1.6", features = [
   "chrono",
 ] }
 serde_json = "1.0"
-serde = "1.0.0"
+serde = { version = "1.0", features = ["derive"] }
+reqwest = { version = "0.12", features = ["json"] }
 chrono = { version = "0.4", features = ["serde"] }
 solana-core = { path = "crates/solana-core" }
 

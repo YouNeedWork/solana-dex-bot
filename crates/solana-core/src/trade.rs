@@ -1,4 +1,4 @@
-use crate::jito;
+use crate::{constants, jito};
 use anyhow::Result;
 use raydium_library::amm;
 use solana_client::nonblocking::rpc_client::RpcClient;
@@ -11,6 +11,8 @@ use spl_token::state::Account;
 use std::str::FromStr;
 use std::sync::Arc;
 use tracing::trace;
+
+use solana_sdk::system_instruction::transfer;
 
 pub struct Trade {
     pub keypair: Arc<Keypair>,
@@ -52,21 +54,40 @@ impl Trade {
         }
     }
 
-    pub async fn swap(&self, token_in: &str, token_out: &str) -> Result<String> {
-        let amm_program = Pubkey::from_str("675kPX9MHTjS2zt1qfr1NYHuzeLXfQM9H24wFSUt1Mp8")?;
-        let amm_pool_id = Pubkey::from_str("H6iiLoyfQg4GXATaRUwgJqTj7a7NStKjKEiDPqafvrMg")?;
+    pub fn check_is_token_addr(&self, token: &str) -> bool {
+        Pubkey::from_str(token).is_ok()
+    }
+
+    pub async fn swap(
+        &self,
+        token_in: &str,
+        token_out: &str,
+        amount_specified: u64,
+        slippage_bps: u64,
+        tip: u64,
+    ) -> Result<()> {
+        if self.check_is_token_addr(token_in) {
+            anyhow::bail!("token_in is not correct address");
+        }
+
+        if self.check_is_token_addr(token_out) {
+            anyhow::bail!("token_out is not correct address");
+        }
+
         /*
         let input_token_mint = Pubkey::from_str("So11111111111111111111111111111111111111112")?;
         let output_token_mint = Pubkey::from_str("E3ZELac8ywEmt5WL5WVncrCXPePSoZuwaQ7rqJDTxs8M")?;
         */
-        let input_token_mint = Pubkey::from_str("E3ZELac8ywEmt5WL5WVncrCXPePSoZuwaQ7rqJDTxs8M")?;
-        let output_token_mint = Pubkey::from_str("So11111111111111111111111111111111111111112")?;
+        let amm_program = Pubkey::from_str(constants::RAYDIUM_AMM_PUBKEY)?;
 
-        let slippage_bps = 1000u64; // 0.5%
+        let amm_pool_id = Pubkey::from_str("H6iiLoyfQg4GXATaRUwgJqTj7a7NStKjKEiDPqafvrMg")?;
+
+        let input_token_mint = Pubkey::from_str(token_in)?;
+        let output_token_mint = Pubkey::from_str(token_out)?;
+
         let amount_specified = 42000000u64;
 
         let swap_base_in = true;
-
         let amm_keys = amm::utils::load_amm_keys(&self.rpc, &amm_program, &amm_pool_id).await?;
         let market_keys = amm::openbook::get_keys_for_market(
             &self.rpc,
@@ -99,7 +120,7 @@ impl Trade {
             amm::utils::SwapDirection::PC2Coin
         };
 
-        let mut other_amount_threshold = amm::swap_with_slippage(
+        let other_amount_threshold = amm::swap_with_slippage(
             result.pool_pc_vault_amount,
             result.pool_coin_vault_amount,
             result.swap_fee_numerator,
@@ -109,8 +130,6 @@ impl Trade {
             swap_base_in,
             slippage_bps,
         )?;
-
-        println!("other_amount_threshold: {:?}", other_amount_threshold);
 
         let mut swap = Swap {
             pre_swap_instructions: vec![],
@@ -150,9 +169,9 @@ impl Trade {
             swap_base_in,
         )?;
 
-        println!("{:?}", build_swap_instruction);
+        trace!("{:?}", build_swap_instruction);
 
-        let blockhash = self.rpc.get_latest_blockhash().await?;
+        //let blockhash = self.rpc.get_latest_blockhash().await?;
         let mut txs = [
             make_compute_budget_ixs(0, 300_000),
             swap.pre_swap_instructions.clone(),
@@ -160,6 +179,13 @@ impl Trade {
             swap.post_swap_instructions.clone(),
         ]
         .concat();
+
+        let fee = 500000;
+        txs.push(transfer(
+            &self.keypair.pubkey(),
+            &Pubkey::from_str(constants::BOT_FEE_PUBKEY)?,
+            fee,
+        ));
 
         /*
         dbg!(&txs);
@@ -181,17 +207,10 @@ impl Trade {
         dbg!(res);
         */
 
-        let mut jito_client = jito::get_searcher_client(
-            &"https://frankfurt.mainnet.block-engine.jito.wtf",
-            &self.keypair.clone(),
-        )
-        .await?;
-
-        let res =
-            jito::send_swap_tx(&mut txs, 50000, &self.keypair, &mut jito_client, &self.rpc).await?;
-        dbg!(res);
-
-        Ok("hello".to_string())
+        let mut jito_client =
+            jito::get_searcher_client(&"https://frankfurt.mainnet.block-engine.jito.wtf").await?;
+        jito::send_swap_tx(&mut txs, tip, &self.keypair, &mut jito_client, &self.rpc).await?;
+        Ok(())
     }
 }
 

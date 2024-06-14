@@ -17,23 +17,20 @@ pub async fn remove_wallet() {}
 // set default wallet
 pub async fn set_default_wallet() {}
 
-
 // 定义一个结构体来表示你的 JSON 响应
 #[derive(Serialize)]
 struct ResponseData<T> {
     message: String,
-    data:T,
-    code: u32
+    data: T,
+    code: u32,
 }
-fn generator_response<T>(msg: String, code:u32,data:T) -> Json <ResponseData<T>> {
-    Json(ResponseData{
-        message:msg,
+fn generator_response<T>(msg: String, code: u32, data: T) -> Json<ResponseData<T>> {
+    Json(ResponseData {
+        message: msg,
         code,
-        data
+        data,
     })
 }
-
-
 
 #[derive(Debug, Validate, Deserialize)]
 pub struct ImportWalletParams {

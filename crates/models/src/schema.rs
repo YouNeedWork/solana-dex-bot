@@ -17,8 +17,10 @@ diesel::table! {
         id -> Int4,
         private_key -> Varchar,
         wallet_address -> Varchar,
-        user_id -> Nullable<Int4>,
-        is_default -> Nullable<Bool>,
+        user_id -> Int4,
+        tips -> Int4,
+        slippage -> Int4,
+        is_default -> Bool,
         create_at -> Nullable<Timestamp>,
         update_at -> Nullable<Timestamp>,
     }
