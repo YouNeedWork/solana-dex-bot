@@ -1,6 +1,5 @@
 [workspace]
 members = [
-  "crates/bot-api",
   "crates/models",
   "crates/solana-core",
   "crates/solana-bot",
