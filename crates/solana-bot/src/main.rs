@@ -1,13 +1,8 @@
-#[macro_use]
-extern crate rust_i18n;
-
 use anyhow::Result;
 use clap::Parser;
-
-use diesel::pg::PgConnection;
-use diesel::r2d2::{ConnectionManager, Pool};
-
 use config::Config;
+use diesel::pg::PgConnection;
+use diesel::r2d2::ConnectionManager;
 use rust_i18n::t;
 
 mod bot;
@@ -18,6 +13,7 @@ rust_i18n::i18n!("locales");
 #[tokio::main]
 async fn main() -> Result<()> {
     let config = Config::parse();
+
     tracing_subscriber::fmt::init();
 
     let manager = ConnectionManager::<PgConnection>::new(config.database_url);
@@ -25,17 +21,8 @@ async fn main() -> Result<()> {
     let db = diesel::r2d2::Pool::builder()
         .build(manager)
         .expect("Failed to create pool");
+
     /*
-    let wallet = Keypair::from_seed(&[
-        118, 206, 164, 217, 88, 74, 225, 36, 231, 186, 155, 160, 221, 19, 71, 28, 253, 155, 196,
-        38, 231, 56, 108, 80, 34, 160, 46, 147, 98, 213, 233, 119,
-    ])
-    .unwrap();
-
-    println!("私钥: {:?}", wallet.secret());
-    println!("私钥: {:?}", wallet.to_base58_string());
-    println!("公钥: {:?}", wallet.pubkey());
-
     let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
     let balances = client.get_balance(&wallet.pubkey()).await.unwrap();
 
@@ -62,7 +49,8 @@ async fn main() -> Result<()> {
         .await?;
     */
 
-    let bot = bot::SolanaBot::new(config.telegram_token, db)?;
+    let app_state = bot::AppState::new();
+    let bot = bot::SolanaBot::new(config.telegram_token, db, app_state)?;
     bot.run().await?;
     Ok(())
 }

@@ -1,2 +1,2 @@
-mod schema;
-mod wallet;
+pub mod schema;
+pub mod wallet;

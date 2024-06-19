@@ -1,5 +1,10 @@
 use anyhow::Result;
+use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_core::trade::Trade;
+use solana_program::pubkey::Pubkey;
+use solana_sdk::signer::{keypair::Keypair, Signer};
 use std::error::Error;
+use std::str::FromStr;
 use teloxide::prelude::*;
 use teloxide::types::InlineKeyboardButton;
 use teloxide::types::InlineKeyboardMarkup;
@@ -10,24 +15,52 @@ use tracing::info;
 
 use diesel::pg::PgConnection;
 use diesel::r2d2::{ConnectionManager, Pool};
+use solana_core::dexscreen;
+use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::RwLock;
+
+use models::wallet::Wallet;
+use solana_core::constants;
 
 type PGPool = Pool<ConnectionManager<PgConnection>>;
 
+#[derive(Clone)]
+pub struct User {
+    uid: i64,
+    username: String,
+    wallet_address: Pubkey,
+    private_key: String,
+}
+
+pub struct AppState {
+    pub users: HashMap<i64, User>,
+}
+
+impl AppState {
+    pub fn new() -> Self {
+        AppState {
+            users: HashMap::new(),
+        }
+    }
+}
+
 pub struct SolanaBot {
-    admin_id: i32,
+    admin_id: i64,
     bot: Bot,
     db: PGPool,
+    app_state: AppState,
 }
 
 impl SolanaBot {
-    pub fn new(token: String, db: PGPool) -> Result<Self> {
+    pub fn new(token: String, db: PGPool, app_state: AppState) -> Result<Self> {
         let bot = teloxide::Bot::new(token);
 
         Ok(Self {
             bot,
             admin_id: 0,
             db,
+            app_state,
         })
     }
 
@@ -36,15 +69,16 @@ impl SolanaBot {
             bot,
             admin_id: _,
             db,
+            app_state,
         } = self;
 
         let db = Arc::new(db);
+        let app_state = Arc::new(RwLock::new(app_state));
 
         let handler = dptree::entry()
-            .branch(
-                Update::filter_message()
-                    .endpoint(move |bot, msg, me| message_handler(bot, msg, me, db.clone())),
-            )
+            .branch(Update::filter_message().endpoint(move |bot, msg, me| {
+                message_handler(bot, msg, me, db.clone(), app_state.clone())
+            }))
             .branch(Update::filter_callback_query().endpoint(callback_handler));
 
         Dispatcher::builder(bot, handler)
@@ -68,7 +102,22 @@ enum Command {
     Lang,
 }
 
-pub async fn menu(bot: Bot, id: ChatId) -> Result<()> {
+pub async fn menu(
+    bot: Bot,
+    id: ChatId,
+    db: Arc<PGPool>,
+    app_state: Arc<RwLock<AppState>>,
+) -> Result<()> {
+    let user = fetch_user(&bot, id, db, app_state).await?;
+
+    let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
+    let trade = Trade::new(Keypair::from_base58_string(&user.private_key), client);
+    let amount = trade
+        .get_balance()
+        .await
+        .map(|a| a as f64 / 1_000_000_000 as f64)
+        .unwrap_or(0.0);
+
     let keyboard = InlineKeyboardMarkup::new(vec![
         vec![
             InlineKeyboardButton::callback("Buy/Sell".to_string(), "BuySell".to_string()),
@@ -80,7 +129,20 @@ pub async fn menu(bot: Bot, id: ChatId) -> Result<()> {
         )],
     ]);
 
-    bot.send_message(id, "Let's start my frrend!".to_string())
+    let message_text = format!(
+        "
+Wallet: {}
+Balance: {} SOL
+
+⚡️Slippage: 5.0%
+🟢Buy tip: 16 SOL
+🔴Sell tip: 6 SOL
+",
+        &user.wallet_address.to_string(),
+        amount
+    );
+
+    bot.send_message(id, message_text)
         .reply_markup(keyboard)
         .await?;
 
@@ -92,6 +154,7 @@ async fn message_handler(
     msg: Message,
     me: Me,
     db: Arc<PGPool>,
+    app_state: Arc<RwLock<AppState>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(text) = msg.text() {
         match BotCommands::parse(text, me.username()) {
@@ -100,21 +163,49 @@ async fn message_handler(
                     .await?;
             }
             Ok(Command::Start) => {
-                //TODO if user not register then register and generate wallet for it
-                menu(bot, msg.chat.id).await?;
+                menu(bot, msg.chat.id, db, app_state).await?;
             }
             Ok(Command::Menu) => {
-                //  TODO: query default wallet
-                // info!("Who send msg: {}", me.user.id);
-                menu(bot, msg.chat.id).await?;
+                menu(bot, msg.chat.id, db, app_state).await?;
             }
             Ok(Command::BuySell) => {}
             Ok(Command::Seting) => {}
             Ok(Command::Lang) => {}
             Err(_) => {
-                info!(text, "Got text");
+                info!(text = &text, "Got text");
 
-                bot.send_message(msg.chat.id, "Command not found!").await?;
+                if let Ok(token_in) = Pubkey::from_str(text) {
+                    info!(token_id=?token_in.to_string(), "recver token wait to trade");
+                    let user = fetch_user(&bot, msg.chat.id, db, app_state).await?;
+
+                    let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
+                    let trade = Trade::new(Keypair::from_base58_string(&user.private_key), client);
+
+                    let amount = trade
+                        .get_balance()
+                        .await
+                        .map(|a| a as f64 / 1_000_000_000 as f64)
+                        .unwrap_or(0.0);
+                    let slp_amount = trade.get_spl_balance(&token_in).await.unwrap_or_default();
+                    info!(balance=?amount,token_in=slp_amount, "recver token wait to trade");
+
+                    if let Ok(dex_info) = dexscreen::search(text).await {
+                        if dex_info.pairs.len() == 0 {
+                            let message_text = format!("Token Not found");
+                            bot.send_message(msg.chat.id, message_text).await?;
+                        }
+
+                        info!(dex_info=?dex_info, "found ");
+                        let message_text = format!("");
+                        bot.send_message(msg.chat.id, message_text).await?;
+                    } else {
+                        let message_text = format!("Token Not found");
+                        bot.send_message(msg.chat.id, message_text).await?;
+                    }
+                }
+
+                //let trade = Trade::new(wallet, client);
+                //let amount = trade.get_spl_balance(&input_token_mint).await?;
             }
         }
     }
@@ -142,4 +233,63 @@ async fn callback_handler(bot: Bot, q: CallbackQuery) -> Result<(), Box<dyn Erro
     }
 
     Ok(())
+}
+
+async fn fetch_user(
+    bot: &Bot,
+    chat_id: ChatId,
+    db: Arc<PGPool>,
+    app_state: Arc<RwLock<AppState>>,
+) -> Result<User> {
+    let user_id = chat_id.0;
+    let mut app_state = app_state.write().await;
+
+    if app_state.users.contains_key(&user_id) {
+        return Ok(app_state.users.get(&user_id).unwrap().clone());
+    } else {
+        //query default
+        match Wallet::fetch_default(&mut db.get().unwrap(), user_id) {
+            Ok(wallet) => {
+                let user = User {
+                    uid: user_id,
+                    username: "NewUser".to_string(), // You may want to fetch the actual username from Telegram API
+                    wallet_address: Pubkey::from_str(&wallet.wallet_address).unwrap(),
+                    private_key: wallet.private_key.clone(),
+                };
+
+                app_state.users.insert(user_id, user.clone());
+                Ok(user)
+            }
+            Err(_) => {
+                let keypair = generate_wallet().await?;
+
+                let new_user = User {
+                    uid: user_id,
+                    username: "NewUser".to_string(), // You may want to fetch the actual username from Telegram API
+                    wallet_address: keypair.pubkey(),
+                    private_key: keypair.to_base58_string(),
+                };
+
+                let wallet = Wallet::new(
+                    keypair.to_base58_string(),
+                    keypair.pubkey().to_string(),
+                    user_id,
+                    true,
+                );
+
+                wallet.create(&mut db.get().unwrap())?;
+
+                // Update the in-memory state
+                app_state.users.insert(user_id, new_user.clone());
+
+                return Ok(new_user);
+            }
+        }
+    }
+}
+
+async fn generate_wallet() -> Result<Keypair> {
+    let mut rng = rand::rngs::OsRng;
+    let keypair = Keypair::generate(&mut rng);
+    Ok(keypair)
 }

@@ -22,6 +22,7 @@ env_logger = "=0.9.3"
 jito-protos = { workspace = true }
 jito-searcher-client = { workspace = true }
 solana-core = { workspace = true }
+models = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 opentelemetry-stdout = { workspace = true }
@@ -31,3 +32,4 @@ tracing-subscriber = { workspace = true }
 sentry-tracing = { workspace = true }
 rust-i18n = "3"
 diesel = { workspace = true }
+rand = "0.7.3"
