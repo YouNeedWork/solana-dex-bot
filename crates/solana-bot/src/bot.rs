@@ -1,14 +1,17 @@
 use anyhow::Result;
 use solana_client::nonblocking::rpc_client::RpcClient;
+use solana_core::constants;
 use solana_core::trade::Trade;
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signer::{keypair::Keypair, Signer};
+use std::default;
 use std::error::Error;
 use std::str::FromStr;
 use teloxide::prelude::*;
 use teloxide::types::InlineKeyboardButton;
 use teloxide::types::InlineKeyboardMarkup;
 use teloxide::types::Me;
+use teloxide::types::ParseMode;
 use teloxide::utils::command::BotCommands;
 use teloxide::Bot;
 use tracing::info;
@@ -21,16 +24,17 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use models::wallet::Wallet;
-use solana_core::constants;
 
 type PGPool = Pool<ConnectionManager<PgConnection>>;
 
 #[derive(Clone)]
 pub struct User {
-    uid: i64,
-    username: String,
-    wallet_address: Pubkey,
-    private_key: String,
+    pub uid: i64,
+    pub username: String,
+    pub wallet_address: Pubkey,
+    pub private_key: String,
+    pub tip: i64,
+    pub slippage: i64,
 }
 
 pub struct AppState {
@@ -75,11 +79,17 @@ impl SolanaBot {
         let db = Arc::new(db);
         let app_state = Arc::new(RwLock::new(app_state));
 
-        let handler = dptree::entry()
-            .branch(Update::filter_message().endpoint(move |bot, msg, me| {
-                message_handler(bot, msg, me, db.clone(), app_state.clone())
-            }))
-            .branch(Update::filter_callback_query().endpoint(callback_handler));
+        let msg_db = db.clone();
+        let app_state1 = app_state.clone();
+
+        let handler =
+            dptree::entry()
+                .branch(Update::filter_message().endpoint(move |bot, msg, me| {
+                    message_handler(bot, msg, me, msg_db.clone(), app_state1.clone())
+                }))
+                .branch(Update::filter_callback_query().endpoint(move |bot, q| {
+                    callback_handler(bot, q, db.clone(), app_state.clone())
+                }));
 
         Dispatcher::builder(bot, handler)
             .enable_ctrlc_handler()
@@ -96,7 +106,6 @@ impl SolanaBot {
 enum Command {
     Help,
     Start,
-    BuySell,
     Menu,
     Seting,
     Lang,
@@ -108,10 +117,11 @@ pub async fn menu(
     db: Arc<PGPool>,
     app_state: Arc<RwLock<AppState>>,
 ) -> Result<()> {
-    let user = fetch_user(&bot, id, db, app_state).await?;
+    let user = fetch_user(&bot, id.0 as i64, db, app_state).await?;
 
     let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
     let trade = Trade::new(Keypair::from_base58_string(&user.private_key), client);
+
     let amount = trade
         .get_balance()
         .await
@@ -131,12 +141,16 @@ pub async fn menu(
 
     let message_text = format!(
         "
-Wallet: {}
+Welcome to edgeX Bot!
+
+Introducing a cutting-edge bot built exclusively for Traders. Trade any token instantly at the moment it launches!
+
+Here's your Solana wallet address linked to your Telegram account. To start trading, deposit SOL to your wallet address and dive into trading.
+
+Wallet: `{}`
 Balance: {} SOL
 
-⚡️Slippage: 5.0%
-🟢Buy tip: 16 SOL
-🔴Sell tip: 6 SOL
+✅Send CA to start trading tokens.
 ",
         &user.wallet_address.to_string(),
         amount
@@ -144,6 +158,7 @@ Balance: {} SOL
 
     bot.send_message(id, message_text)
         .reply_markup(keyboard)
+        .parse_mode(ParseMode::Markdown)
         .await?;
 
     Ok(())
@@ -168,15 +183,14 @@ async fn message_handler(
             Ok(Command::Menu) => {
                 menu(bot, msg.chat.id, db, app_state).await?;
             }
-            Ok(Command::BuySell) => {}
             Ok(Command::Seting) => {}
             Ok(Command::Lang) => {}
             Err(_) => {
                 info!(text = &text, "Got text");
 
                 if let Ok(token_in) = Pubkey::from_str(text) {
-                    info!(token_id=?token_in.to_string(), "recver token wait to trade");
-                    let user = fetch_user(&bot, msg.chat.id, db, app_state).await?;
+                    info!(token_in=?token_in.to_string(), "recver token wait to trade");
+                    let user = fetch_user(&bot, msg.chat.id.0 as i64, db, app_state).await?;
 
                     let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
                     let trade = Trade::new(Keypair::from_base58_string(&user.private_key), client);
@@ -186,18 +200,92 @@ async fn message_handler(
                         .await
                         .map(|a| a as f64 / 1_000_000_000 as f64)
                         .unwrap_or(0.0);
+
                     let slp_amount = trade.get_spl_balance(&token_in).await.unwrap_or_default();
                     info!(balance=?amount,token_in=slp_amount, "recver token wait to trade");
 
                     if let Ok(dex_info) = dexscreen::search(text).await {
-                        if dex_info.pairs.len() == 0 {
-                            let message_text = format!("Token Not found");
+                        if dex_info.pairs.is_empty() {
+                            let message_text = "Token Address Not found";
                             bot.send_message(msg.chat.id, message_text).await?;
+                            return Ok(());
                         }
 
-                        info!(dex_info=?dex_info, "found ");
-                        let message_text = format!("");
-                        bot.send_message(msg.chat.id, message_text).await?;
+                        let pair = dex_info.pairs.first().unwrap();
+
+                        info!(dex_info=?dex_info, "found ca");
+                        let message_text = format!(
+                            "
+📌[{}](https://dexscreener.com/solana/{})
+{}
+
+💳Wallet: 
+|——Balance: {} SOL ($0)
+|——Holding:{} SOL ($0)
+|___PnL: 0%🚀🚀
+
+💵Trade: 
+|——Market Cap: 2.1M
+|——Price: 0.0021
+|___PepeBoost Buyers: 516
+
+🔍Security:
+|——Renounced✅ LP Burnt✅ Freeze revoked✅
+|___Top 10 : 18%
+
+📝LP: HOLDY-SOL
+|——🟢 Trading opened
+|——   Created 0d 7h 27m ago
+|___  Liquidity: 636.99 SOL(0.08%)
+
+📲Links:
+",
+                            pair.base_token.name,
+                            pair.pair_address,
+                            pair.base_token.address,
+                            amount,
+                            slp_amount
+                        );
+
+                        let keyboard = InlineKeyboardMarkup::new(vec![
+                            vec![
+                                InlineKeyboardButton::callback(
+                                    "Buy 0.01".to_string(),
+                                    "Buy1 ".to_string() + &pair.base_token.address,
+                                ),
+                                InlineKeyboardButton::callback(
+                                    "Buy 0.1".to_string(),
+                                    "Buy10".to_string(),
+                                ),
+                                InlineKeyboardButton::callback(
+                                    "Buy 1".to_string(),
+                                    "Buy100".to_string(),
+                                ),
+                            ],
+                            vec![
+                                InlineKeyboardButton::callback(
+                                    "Sell 25%".to_string(),
+                                    "Sell25".to_string(),
+                                ),
+                                InlineKeyboardButton::callback(
+                                    "Sell 50%".to_string(),
+                                    "Sell50".to_string(),
+                                ),
+                                InlineKeyboardButton::callback(
+                                    "Sell 75%".to_string(),
+                                    "Sell75".to_string(),
+                                ),
+                            ],
+                            vec![InlineKeyboardButton::callback(
+                                "Sell 100%".to_string(),
+                                "Sell100".to_string(),
+                            )],
+                        ]);
+
+                        bot.send_message(msg.chat.id, message_text)
+                            .reply_markup(keyboard)
+                            .parse_mode(ParseMode::Markdown)
+                            .await?;
                     } else {
                         let message_text = format!("Token Not found");
                         bot.send_message(msg.chat.id, message_text).await?;
@@ -213,15 +301,140 @@ async fn message_handler(
     Ok(())
 }
 
-async fn callback_handler(bot: Bot, q: CallbackQuery) -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn callback_handler(
+    bot: Bot,
+    q: CallbackQuery,
+    db: Arc<PGPool>,
+    app_state: Arc<RwLock<AppState>>,
+) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(chose) = q.data {
         log::info!("You chose: {}", chose);
         bot.answer_callback_query(q.id).await?;
 
-        let text = if chose == "Buy" {
-            "You chose to buy Debian!"
-        } else {
-            "You chose to sell Debian!"
+        let com = chose.split(" ").collect::<Vec<&str>>();
+
+        let action = com.first().unwrap();
+
+        let text = match *action {
+            "Buy1" => {
+                info!("buy 0.01");
+                let user = fetch_user(&bot, q.from.id.0 as i64, db, app_state)
+                    .await
+                    .unwrap();
+
+                let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
+                let trade = Trade::new(Keypair::from_base58_string(&user.private_key), client);
+
+                let amount = trade
+                    .get_balance()
+                    .await
+                    .map(|a| a as f64 / 1_000_000_000 as f64)
+                    .unwrap_or(0.0);
+
+                if amount < 0.01 {
+                    "Insufficient balance"
+                } else {
+                    if let Ok(_) = trade
+                        .swap(
+                            com.get(1).unwrap(),
+                            constants::SOLANA_PROGRAM_ID,
+                            10000000,
+                            user.slippage as u64,
+                            user.tip as u64,
+                        )
+                        .await
+                    {
+                        "Swap success"
+                    } else {
+                        "Swap failed"
+                    }
+                }
+            }
+            "Buy10" => {
+                info!("buy 0.1");
+                let user = fetch_user(&bot, q.from.id.0 as i64, db, app_state)
+                    .await
+                    .unwrap();
+
+                let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
+                let trade = Trade::new(Keypair::from_base58_string(&user.private_key), client);
+
+                let amount = trade
+                    .get_balance()
+                    .await
+                    .map(|a| a as f64 / 1_000_000_000 as f64)
+                    .unwrap_or(0.0);
+
+                if amount < 0.1 {
+                    "Insufficient balance"
+                } else {
+                    if let Ok(_) = trade
+                        .swap(
+                            com.get(1).unwrap(),
+                            constants::SOLANA_PROGRAM_ID,
+                            100000000,
+                            user.slippage as u64,
+                            user.tip as u64,
+                        )
+                        .await
+                    {
+                        "Swap success"
+                    } else {
+                        "Swap failed"
+                    }
+                }
+            }
+            "Buy100" => {
+                info!("buy 1");
+                let user = fetch_user(&bot, q.from.id.0 as i64, db, app_state)
+                    .await
+                    .unwrap();
+
+                let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
+                let trade = Trade::new(Keypair::from_base58_string(&user.private_key), client);
+
+                let amount = trade
+                    .get_balance()
+                    .await
+                    .map(|a| a as f64 / 1_000_000_000 as f64)
+                    .unwrap_or(0.0);
+
+                if amount < 1.0 {
+                    "Insufficient balance"
+                } else {
+                    if let Ok(_) = trade
+                        .swap(
+                            com.get(1).unwrap(),
+                            constants::SOLANA_PROGRAM_ID,
+                            1_000_000_000,
+                            user.slippage as u64,
+                            user.tip as u64,
+                        )
+                        .await
+                    {
+                        "Swap success"
+                    } else {
+                        "Swap failed"
+                    }
+                }
+            }
+            "Sell25" => {
+                info!("sell 25%");
+                "Sell 25%"
+            }
+            "Sell50" => {
+                info!("sell 50%");
+                "Sell 50%"
+            }
+            "Sell75" => {
+                info!("sell 75%");
+                "Sell 75%"
+            }
+            "Sell100" => {
+                info!("sell 100%");
+                "Sell 100%"
+            }
+            _ => "Not found action",
         };
 
         // Edit text of the message to which the buttons were attached
@@ -237,11 +450,10 @@ async fn callback_handler(bot: Bot, q: CallbackQuery) -> Result<(), Box<dyn Erro
 
 async fn fetch_user(
     bot: &Bot,
-    chat_id: ChatId,
+    user_id: i64,
     db: Arc<PGPool>,
     app_state: Arc<RwLock<AppState>>,
 ) -> Result<User> {
-    let user_id = chat_id.0;
     let mut app_state = app_state.write().await;
 
     if app_state.users.contains_key(&user_id) {
@@ -255,6 +467,8 @@ async fn fetch_user(
                     username: "NewUser".to_string(), // You may want to fetch the actual username from Telegram API
                     wallet_address: Pubkey::from_str(&wallet.wallet_address).unwrap(),
                     private_key: wallet.private_key.clone(),
+                    slippage: wallet.slippage.into(),
+                    tip: wallet.tip.into(),
                 };
 
                 app_state.users.insert(user_id, user.clone());
@@ -268,6 +482,8 @@ async fn fetch_user(
                     username: "NewUser".to_string(), // You may want to fetch the actual username from Telegram API
                     wallet_address: keypair.pubkey(),
                     private_key: keypair.to_base58_string(),
+                    slippage: 800,
+                    tip: 500000,
                 };
 
                 let wallet = Wallet::new(
@@ -292,4 +508,8 @@ async fn generate_wallet() -> Result<Keypair> {
     let mut rng = rand::rngs::OsRng;
     let keypair = Keypair::generate(&mut rng);
     Ok(keypair)
+}
+
+async fn buy() -> Result<()> {
+    Ok(())
 }

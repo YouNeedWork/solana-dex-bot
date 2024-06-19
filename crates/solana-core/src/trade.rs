@@ -11,6 +11,7 @@ use solana_sdk::signer::{keypair::Keypair, Signer};
 use spl_token::state::Account;
 use std::str::FromStr;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::trace;
 
 use solana_sdk::system_instruction::transfer;
@@ -191,9 +192,13 @@ impl Trade {
         ));
 
         /*
-        dbg!(&txs);
+        use solana_sdk::transaction::Transaction;
+        use solana_sdk::transaction::VersionedTransaction;
 
-        let mut message = SolMessage::new(&txs, Some(&self.keypair.pubkey()));
+        use solana_program::message::Message;
+        let blockhash = self.rpc.get_latest_blockhash().await?;
+
+        let mut message = Message::new(&txs, Some(&self.keypair.pubkey()));
         message.recent_blockhash = blockhash;
 
         let mut tx = Transaction::new_unsigned(message);
@@ -203,16 +208,27 @@ impl Trade {
 
         //let searcher_client = "";
         let tx = VersionedTransaction::from(tx);
-        let sim_res = self.rpc.simulate_transaction(&tx).await?;
-        dbg!(sim_res);
+
+        //let sim_res = self.rpc.simulate_transaction(&tx).await?;
         //jito::send_swap_tx([tx], 50000, &self.keypair, searcher_client, &self.rpc);
         let res = self.rpc.send_and_confirm_transaction(&tx).await?;
-        dbg!(res);
         */
 
         let mut jito_client =
             jito::get_searcher_client(&"https://frankfurt.mainnet.block-engine.jito.wtf").await?;
-        jito::send_swap_tx(&mut txs, tip, &self.keypair, &mut jito_client, &self.rpc).await?;
+
+        let mut times = 3;
+        while times > 0 {
+            if jito::send_swap_tx(&mut txs, tip, &self.keypair, &mut jito_client, &self.rpc)
+                .await
+                .is_err()
+            {
+                times -= 1;
+            }
+        }
+        if times == 0 {
+            anyhow::bail!("transfer did not land!")
+        }
 
         Ok(())
     }
