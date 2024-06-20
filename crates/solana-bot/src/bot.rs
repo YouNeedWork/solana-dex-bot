@@ -336,7 +336,7 @@ async fn callback_handler(
                         .swap(
                             constants::SOLANA_PROGRAM_ID,
                             com.get(1).unwrap(),
-                            1000000,
+                            10_000_000,
                             user.slippage as u64,
                             user.tip as u64,
                         )
@@ -374,7 +374,7 @@ async fn callback_handler(
                         .swap(
                             constants::SOLANA_PROGRAM_ID,
                             swap_token,
-                            100000000,
+                            100_000_000,
                             user.slippage as u64,
                             user.tip as u64,
                         )
