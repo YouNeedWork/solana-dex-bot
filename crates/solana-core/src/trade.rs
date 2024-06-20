@@ -176,7 +176,7 @@ impl Trade {
 
         //let blockhash = self.rpc.get_latest_blockhash().await?;
         let mut txs = [
-            make_compute_budget_ixs(0, 100_000),
+            make_compute_budget_ixs(0, 1000),
             swap.pre_swap_instructions.clone(),
             vec![build_swap_instruction],
             swap.post_swap_instructions.clone(),
