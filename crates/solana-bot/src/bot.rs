@@ -158,7 +158,7 @@ Balance: {} SOL
     );
 
     bot.send_message(id, message_text)
-        .reply_markup(keyboard)
+        //.reply_markup(keyboard)
         .parse_mode(ParseMode::Markdown)
         .await?;
 
