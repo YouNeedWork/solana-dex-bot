@@ -1,4 +1,5 @@
 use crate::schema::wallets;
+use anyhow::{bail, Result};
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -68,6 +69,19 @@ impl Wallet {
             ))
             .execute(conn)?;
         Ok(())
+    }
+
+    pub fn fetch_default_with_id(
+        conn: &mut PgConnection,
+        fetch_user_id: i64,
+    ) -> Result<WalletQuery> {
+        use crate::schema::wallets::dsl::*;
+
+        wallets
+            .filter(user_id.eq(fetch_user_id))
+            .filter(is_default.eq(true))
+            .first::<WalletQuery>(conn)
+            .map_err(Into::into)
     }
 
     pub fn fetch_default(

@@ -1,12 +1,28 @@
 // @generated automatically by Diesel CLI.
 
 diesel::table! {
+    history (id) {
+        id -> Int4,
+        wallet_id -> Int4,
+        token_a -> Varchar,
+        token_b -> Varchar,
+        lp -> Varchar,
+        amount -> Varchar,
+        price -> Varchar,
+        create_at -> Nullable<Timestamp>,
+        update_at -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
     hold_coins (id) {
         id -> Int4,
         wallet_id -> Int4,
         token_a -> Varchar,
         token_b -> Varchar,
-        price -> Varchar,
+        lp -> Varchar,
+        amount -> Varchar,
+        avg_price -> Varchar,
         create_at -> Nullable<Timestamp>,
         update_at -> Nullable<Timestamp>,
     }
@@ -26,4 +42,4 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(hold_coins, wallets,);
+diesel::allow_tables_to_appear_in_same_query!(history, hold_coins, wallets,);

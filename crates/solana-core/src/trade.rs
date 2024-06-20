@@ -11,7 +11,6 @@ use solana_sdk::signer::{keypair::Keypair, Signer};
 use spl_token::state::Account;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::Duration;
 use tracing::trace;
 
 use solana_sdk::system_instruction::transfer;
@@ -191,7 +190,6 @@ impl Trade {
             fee,
         ));
 
-        /*
         use solana_sdk::transaction::Transaction;
         use solana_sdk::transaction::VersionedTransaction;
 
@@ -209,10 +207,10 @@ impl Trade {
         //let searcher_client = "";
         let tx = VersionedTransaction::from(tx);
 
-        //let sim_res = self.rpc.simulate_transaction(&tx).await?;
+        let sim_res = self.rpc.simulate_transaction(&tx).await?;
+        dbg!(sim_res);
         //jito::send_swap_tx([tx], 50000, &self.keypair, searcher_client, &self.rpc);
-        let res = self.rpc.send_and_confirm_transaction(&tx).await?;
-        */
+        // let res = self.rpc.send_and_confirm_transaction(&tx).await?;
 
         let mut jito_client =
             jito::get_searcher_client(&"https://frankfurt.mainnet.block-engine.jito.wtf").await?;
@@ -224,11 +222,16 @@ impl Trade {
                 .is_err()
             {
                 times -= 1;
+            } else {
+                break;
             }
         }
+
         if times == 0 {
             anyhow::bail!("transfer did not land!")
         }
+
+        tracing::info!("success swap");
 
         Ok(())
     }
