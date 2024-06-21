@@ -308,14 +308,15 @@ async fn callback_handler(
         bot.answer_callback_query(q.id).await?;
 
         let com = chose.trim().split("|").collect::<Vec<&str>>();
-
         let action = com.first().unwrap();
 
         let user = fetch_user(&bot, q.from.id.0 as i64, db.clone(), app_state.clone())
             .await
             .unwrap();
 
+        //TODO global the rpc client
         let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
+
         let trade = Trade::new(Keypair::from_base58_string(&user.private_key), client);
 
         let amount = trade
@@ -324,21 +325,36 @@ async fn callback_handler(
             .map(|a| a as f64 / 1_000_000_000 as f64)
             .unwrap_or(0.0);
 
+        //FIX: we should check actions first and then do the job
+        //TODO: refactor this actions
+        let token_str = com.get(1).unwrap();
+        let pair = dexscreen::search(token_str)
+            .await
+            .unwrap()
+            .pairs
+            .first()
+            .unwrap()
+            .to_owned();
+
         let text = match *action {
             "Buy1" => {
                 info!("buy 0.01");
                 if amount < 0.01 {
                     "Insufficient balance"
                 } else {
+                    //TODO: Handle all error with thiserror
                     let swap_token = com.get(1).unwrap();
+                    let token_out = Pubkey::from_str(swap_token).unwrap();
 
                     if let Ok(_) = trade
                         .swap(
-                            constants::SOLANA_PROGRAM_ID,
-                            com.get(1).unwrap(),
+                            Pubkey::from_str(&pair.pair_address).unwrap(),
+                            Pubkey::from_str(constants::SOLANA_PROGRAM_ID).unwrap(),
+                            token_out,
                             10_000_000,
                             user.slippage as u64,
                             user.tip as u64,
+                            3000000,
                         )
                         .await
                     {
@@ -369,14 +385,17 @@ async fn callback_handler(
                     "Insufficient balance"
                 } else {
                     let swap_token = com.get(1).unwrap();
+                    let token_out = Pubkey::from_str(swap_token).unwrap();
 
                     if let Ok(_) = trade
                         .swap(
-                            constants::SOLANA_PROGRAM_ID,
-                            swap_token,
+                            Pubkey::from_str(&pair.pair_address).unwrap(),
+                            Pubkey::from_str(constants::SOLANA_PROGRAM_ID).unwrap(),
+                            token_out,
                             100_000_000,
                             user.slippage as u64,
                             user.tip as u64,
+                            3000000,
                         )
                         .await
                     {
@@ -406,13 +425,18 @@ async fn callback_handler(
                 if amount < 1.0 {
                     "Insufficient balance"
                 } else {
+                    let swap_token = com.get(1).unwrap();
+                    let token_out = Pubkey::from_str(swap_token).unwrap();
+
                     if let Ok(_) = trade
                         .swap(
-                            constants::SOLANA_PROGRAM_ID,
-                            com.get(1).unwrap(),
+                            Pubkey::from_str(&pair.pair_address).unwrap(),
+                            Pubkey::from_str(constants::SOLANA_PROGRAM_ID).unwrap(),
+                            token_out,
                             1_000_000_000,
                             user.slippage as u64,
                             user.tip as u64,
+                            3000000,
                         )
                         .await
                     {
@@ -425,6 +449,7 @@ async fn callback_handler(
             "Sell25" => {
                 info!("sell 25%");
                 let swap_token = com.get(1).unwrap();
+                let token_out = Pubkey::from_str(swap_token).unwrap();
 
                 let amount = trade
                     .get_spl_balance(&Pubkey::from_str(swap_token).unwrap())
@@ -433,11 +458,13 @@ async fn callback_handler(
 
                 if let Ok(_) = trade
                     .swap(
-                        swap_token,
-                        constants::SOLANA_PROGRAM_ID,
+                        Pubkey::from_str(&pair.pair_address).unwrap(),
+                        token_out,
+                        Pubkey::from_str(constants::SOLANA_PROGRAM_ID).unwrap(),
                         amount * 25 / 100,
                         user.slippage as u64,
                         user.tip as u64,
+                        3000000,
                     )
                     .await
                 {
@@ -465,6 +492,7 @@ async fn callback_handler(
                 info!("sell 50%");
                 let swap_token = com.get(1).unwrap();
 
+                let token_out = Pubkey::from_str(swap_token).unwrap();
                 let amount = trade
                     .get_spl_balance(&Pubkey::from_str(swap_token).unwrap())
                     .await
@@ -472,11 +500,13 @@ async fn callback_handler(
 
                 if let Ok(_) = trade
                     .swap(
-                        swap_token,
-                        constants::SOLANA_PROGRAM_ID,
+                        Pubkey::from_str(&pair.pair_address).unwrap(),
+                        token_out,
+                        Pubkey::from_str(constants::SOLANA_PROGRAM_ID).unwrap(),
                         amount * 50 / 100,
                         user.slippage as u64,
                         user.tip as u64,
+                        3000000,
                     )
                     .await
                 {
@@ -503,6 +533,7 @@ async fn callback_handler(
             "Sell75" => {
                 info!("sell 75%");
                 let swap_token = com.get(1).unwrap();
+                let token_out = Pubkey::from_str(swap_token).unwrap();
 
                 let amount = trade
                     .get_spl_balance(&Pubkey::from_str(swap_token).unwrap())
@@ -511,11 +542,13 @@ async fn callback_handler(
 
                 if let Ok(_) = trade
                     .swap(
-                        swap_token,
-                        constants::SOLANA_PROGRAM_ID,
+                        Pubkey::from_str(&pair.pair_address).unwrap(),
+                        token_out,
+                        Pubkey::from_str(constants::SOLANA_PROGRAM_ID).unwrap(),
                         amount * 75 / 100,
                         user.slippage as u64,
                         user.tip as u64,
+                        3000000,
                     )
                     .await
                 {
@@ -543,6 +576,7 @@ async fn callback_handler(
                 info!("sell 100%");
                 let swap_token = com.get(1).unwrap();
 
+                let token_out = Pubkey::from_str(swap_token).unwrap();
                 let amount = trade
                     .get_spl_balance(&Pubkey::from_str(swap_token).unwrap())
                     .await
@@ -550,11 +584,13 @@ async fn callback_handler(
 
                 if let Ok(_) = trade
                     .swap(
-                        swap_token,
-                        constants::SOLANA_PROGRAM_ID,
+                        Pubkey::from_str(&pair.pair_address).unwrap(),
+                        token_out,
+                        Pubkey::from_str(constants::SOLANA_PROGRAM_ID).unwrap(),
                         amount,
                         user.slippage as u64,
                         user.tip as u64,
+                        3000000,
                     )
                     .await
                 {

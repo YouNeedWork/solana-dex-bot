@@ -61,12 +61,15 @@ impl Trade {
 
     pub async fn swap(
         &self,
-        token_in: &str,
-        token_out: &str,
+        amm_pool_id: Pubkey,
+        input_token_mint: Pubkey,
+        output_token_mint: Pubkey,
         amount_specified: u64,
         slippage_bps: u64,
         tip: u64,
+        budget: u32,
     ) -> Result<()> {
+        /*
         if !self.check_is_token_addr(token_in) {
             anyhow::bail!("token_in is not correct address");
         }
@@ -74,7 +77,9 @@ impl Trade {
         if !self.check_is_token_addr(token_out) {
             anyhow::bail!("token_out is not correct address");
         }
+        */
 
+        /*
         let dex_info = if token_in == constants::SOLANA_PROGRAM_ID {
             dexscreen::search(token_out).await?
         } else {
@@ -83,12 +88,15 @@ impl Trade {
 
         anyhow::ensure!(dex_info.pairs.len() != 0, "can't find pair info");
         let pair = dex_info.pairs.first().unwrap();
+        */
 
         let amm_program = Pubkey::from_str(constants::RAYDIUM_LIQUIDITY_POOL_V4_PUBKEY)?;
-        let amm_pool_id = Pubkey::from_str(&pair.pair_address)?;
+        //let amm_pool_id = Pubkey::from_str(&pair.pair_address)?;
 
+        /*
         let input_token_mint = Pubkey::from_str(token_in)?;
         let output_token_mint = Pubkey::from_str(token_out)?;
+        */
 
         let swap_base_in = true;
         let amm_keys = amm::utils::load_amm_keys(&self.rpc, &amm_program, &amm_pool_id).await?;
@@ -176,7 +184,7 @@ impl Trade {
 
         //let blockhash = self.rpc.get_latest_blockhash().await?;
         let mut txs = [
-            make_compute_budget_ixs(0, 10_000_000),
+            make_compute_budget_ixs(0, budget),
             swap.pre_swap_instructions.clone(),
             vec![build_swap_instruction],
             swap.post_swap_instructions.clone(),
