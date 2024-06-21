@@ -5,15 +5,14 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Queryable, Debug, Clone, Serialize, Deserialize)]
 #[diesel(table_name = hold_coins)]
-pub struct HodCoinQuery {
+pub struct HoldCoinQuery {
     pub id: i32,
     pub wallet_id: i32,
     pub token_a: String,
     pub token_b: String,
     pub lp: String,
-    pub amount: i64,
-    pub avg_price: i64,
-    pub is_default: bool,
+    pub amount: String,
+    pub avg_price: String,
     pub create_at: Option<chrono::NaiveDateTime>,
     pub update_at: Option<chrono::NaiveDateTime>,
 }
@@ -68,6 +67,15 @@ impl HoldCoin {
             .do_update()
             .set(amount.eq(new_record.amount.clone()))
             .execute(conn)
+            .map_err(Into::into)
+    }
+
+    pub fn fetch_all(conn: &mut PgConnection, fetch_wallet_id: i32) -> Result<Vec<HoldCoinQuery>> {
+        use crate::schema::hold_coins::dsl::*;
+
+        hold_coins
+            .filter(wallet_id.eq(fetch_wallet_id))
+            .get_results(conn)
             .map_err(Into::into)
     }
 }

@@ -69,46 +69,17 @@ impl Trade {
         tip: u64,
         budget: u32,
     ) -> Result<()> {
-        /*
-        if !self.check_is_token_addr(token_in) {
-            anyhow::bail!("token_in is not correct address");
-        }
-
-        if !self.check_is_token_addr(token_out) {
-            anyhow::bail!("token_out is not correct address");
-        }
-        */
-
-        /*
-        let dex_info = if token_in == constants::SOLANA_PROGRAM_ID {
-            dexscreen::search(token_out).await?
-        } else {
-            dexscreen::search(token_in).await?
-        };
-
-        anyhow::ensure!(dex_info.pairs.len() != 0, "can't find pair info");
-        let pair = dex_info.pairs.first().unwrap();
-        */
-
         let amm_program = Pubkey::from_str(constants::RAYDIUM_LIQUIDITY_POOL_V4_PUBKEY)?;
-        //let amm_pool_id = Pubkey::from_str(&pair.pair_address)?;
-
-        /*
-        let input_token_mint = Pubkey::from_str(token_in)?;
-        let output_token_mint = Pubkey::from_str(token_out)?;
-        */
-
         let swap_base_in = true;
         let amm_keys = amm::utils::load_amm_keys(&self.rpc, &amm_program, &amm_pool_id).await?;
+
         let market_keys = amm::openbook::get_keys_for_market(
             &self.rpc,
             &amm_keys.market_program,
             &amm_keys.market,
         )
-        .await
-        .expect("market get failed");
+        .await?;
 
-        trace!("{:?}", amm_keys);
         // calculate amm pool vault with load data at the same time or use simulate to calculate
         let result = amm::calculate_pool_vault_amounts(
             &self.rpc,
@@ -116,12 +87,9 @@ impl Trade {
             &amm_pool_id,
             &amm_keys,
             &market_keys,
-            //amm::utils::CalculateMethod::CalculateWithLoadAccount,
             amm::utils::CalculateMethod::Simulate(self.keypair.pubkey()),
         )
         .await?;
-
-        trace!("{:?}", result);
 
         let direction = if input_token_mint == amm_keys.amm_coin_mint
             && output_token_mint == amm_keys.amm_pc_mint
