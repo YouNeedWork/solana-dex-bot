@@ -1,5 +1,5 @@
 use crate::schema::wallets;
-use anyhow::{bail, Result};
+use anyhow::Result;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
 
@@ -32,9 +32,7 @@ pub struct Wallet {
 
 impl Wallet {
     pub fn new(
-        private_key: String,
-        wallet_address: String,
-        user_id: i64,
+        private_key: String, wallet_address: String, user_id: i64,
         is_default: bool,
     ) -> Self {
         Wallet {
@@ -49,18 +47,20 @@ impl Wallet {
         }
     }
 
-    pub fn set_default(&mut self) {
-        self.is_default = true;
-    }
+    pub fn set_default(&mut self) { self.is_default = true; }
 
-    pub fn create(&self, conn: &mut PgConnection) -> Result<(), diesel::result::Error> {
+    pub fn create(
+        &self, conn: &mut PgConnection,
+    ) -> Result<(), diesel::result::Error> {
         diesel::insert_into(wallets::table)
             .values(self)
             .execute(conn)?;
         Ok(())
     }
 
-    pub fn update(&self, conn: &mut PgConnection) -> Result<(), diesel::result::Error> {
+    pub fn update(
+        &self, conn: &mut PgConnection,
+    ) -> Result<(), diesel::result::Error> {
         use crate::schema::wallets::dsl::*;
         diesel::update(wallets.filter(wallet_address.eq(&self.wallet_address)))
             .set((
@@ -72,8 +72,7 @@ impl Wallet {
     }
 
     pub fn fetch_default_with_id(
-        conn: &mut PgConnection,
-        fetch_user_id: i64,
+        conn: &mut PgConnection, fetch_user_id: i64,
     ) -> Result<WalletQuery> {
         use crate::schema::wallets::dsl::*;
 
@@ -85,8 +84,7 @@ impl Wallet {
     }
 
     pub fn fetch_default(
-        conn: &mut PgConnection,
-        fetch_user_id: i64,
+        conn: &mut PgConnection, fetch_user_id: i64,
     ) -> Result<Self, diesel::result::Error> {
         use crate::schema::wallets::dsl::*;
 

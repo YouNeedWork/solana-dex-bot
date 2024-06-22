@@ -1,35 +1,37 @@
 use anyhow::Result;
 use models::hold_coin::HoldCoin;
 use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_core::constants;
-use solana_core::trade::Trade;
+use solana_core::{constants, trade::Trade};
 use solana_program::pubkey::Pubkey;
 use solana_sdk::signer::{keypair::Keypair, Signer};
-use std::error::Error;
-use std::str::FromStr;
-use teloxide::prelude::*;
-use teloxide::types::InlineKeyboardButton;
-use teloxide::types::InlineKeyboardMarkup;
-use teloxide::types::Me;
-use teloxide::types::ParseMode;
-use teloxide::utils::command::BotCommands;
-use teloxide::Bot;
+use std::{error::Error, str::FromStr};
+use teloxide::{
+    prelude::*,
+    types::{InlineKeyboardButton, InlineKeyboardMarkup, Me, ParseMode},
+    utils::command::BotCommands,
+    Bot,
+};
 use tracing::info;
 
 use crate::user::User;
 
-use diesel::pg::PgConnection;
-use diesel::r2d2::{ConnectionManager, Pool};
+use diesel::{
+    pg::PgConnection,
+    r2d2::{ConnectionManager, Pool},
+};
 use models::wallet::Wallet;
 use solana_core::dexscreen;
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 type PGPool = Pool<ConnectionManager<PgConnection>>;
 
 pub struct AppState {
     pub users: HashMap<i64, User>,
+}
+
+impl Default for AppState {
+    fn default() -> Self { Self::new() }
 }
 
 impl AppState {
@@ -62,14 +64,19 @@ impl SolanaBot {
         let msg_db = db.clone();
         let app_state1 = app_state.clone();
 
-        let handler =
-            dptree::entry()
-                .branch(Update::filter_message().endpoint(move |bot, msg, me| {
-                    message_handler(bot, msg, me, msg_db.clone(), app_state1.clone())
-                }))
-                .branch(Update::filter_callback_query().endpoint(move |bot, q| {
-                    callback_handler(bot, q, db.clone(), app_state.clone())
-                }));
+        let handler = dptree::entry()
+            .branch(Update::filter_message().endpoint(move |bot, msg, me| {
+                message_handler(
+                    bot,
+                    msg,
+                    me,
+                    msg_db.clone(),
+                    app_state1.clone(),
+                )
+            }))
+            .branch(Update::filter_callback_query().endpoint(move |bot, q| {
+                callback_handler(bot, q, db.clone(), app_state.clone())
+            }));
 
         Dispatcher::builder(bot, handler)
             .enable_ctrlc_handler()
@@ -92,26 +99,30 @@ enum Command {
 }
 
 pub async fn menu(
-    bot: Bot,
-    id: ChatId,
-    db: Arc<PGPool>,
-    app_state: Arc<RwLock<AppState>>,
+    bot: Bot, id: ChatId, db: Arc<PGPool>, app_state: Arc<RwLock<AppState>>,
 ) -> Result<()> {
-    let user = fetch_user(id.0 as i64, db, app_state).await?;
+    let user = fetch_user(id.0, db, app_state).await?;
 
     let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
-    let trade = Trade::new(Keypair::from_base58_string(&user.private_key), client);
+    let trade =
+        Trade::new(Keypair::from_base58_string(&user.private_key), client);
 
     let amount = trade
         .get_balance()
         .await
-        .map(|a| a as f64 / 1_000_000_000 as f64)
+        .map(|a| a as f64 / 1_000_000_000_f64)
         .unwrap_or(0.0);
 
     let keyboard = InlineKeyboardMarkup::new(vec![
         vec![
-            InlineKeyboardButton::callback("Buy/Sell".to_string(), "BuySell".to_string()),
-            InlineKeyboardButton::callback("Assets".to_string(), "Assets".to_string()),
+            InlineKeyboardButton::callback(
+                "Buy/Sell".to_string(),
+                "BuySell".to_string(),
+            ),
+            InlineKeyboardButton::callback(
+                "Assets".to_string(),
+                "Assets".to_string(),
+            ),
         ],
         vec![InlineKeyboardButton::callback(
             "Help".to_string(),
@@ -145,17 +156,17 @@ Balance: {} SOL
 }
 
 async fn message_handler(
-    bot: Bot,
-    msg: Message,
-    me: Me,
-    db: Arc<PGPool>,
+    bot: Bot, msg: Message, me: Me, db: Arc<PGPool>,
     app_state: Arc<RwLock<AppState>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(text) = msg.text() {
         match BotCommands::parse(text, me.username()) {
             Ok(Command::Help) => {
-                bot.send_message(msg.chat.id, Command::descriptions().to_string())
-                    .await?;
+                bot.send_message(
+                    msg.chat.id,
+                    Command::descriptions().to_string(),
+                )
+                .await?;
             }
             Ok(Command::Start) => {
                 menu(bot, msg.chat.id, db, app_state).await?;
@@ -170,18 +181,24 @@ async fn message_handler(
 
                 if let Ok(token_in) = Pubkey::from_str(text) {
                     info!(token_in=?token_in.to_string(), "recver token wait to trade");
-                    let user = fetch_user(msg.chat.id.0 as i64, db, app_state).await?;
+                    let user = fetch_user(msg.chat.id.0, db, app_state).await?;
 
                     let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
-                    let trade = Trade::new(Keypair::from_base58_string(&user.private_key), client);
+                    let trade = Trade::new(
+                        Keypair::from_base58_string(&user.private_key),
+                        client,
+                    );
 
                     let amount = trade
                         .get_balance()
                         .await
-                        .map(|a| a as f64 / 1_000_000_000 as f64)
+                        .map(|a| a as f64 / 1_000_000_000_f64)
                         .unwrap_or(0.0);
 
-                    let slp_amount = trade.get_spl_balance(&token_in).await.unwrap_or_default();
+                    let slp_amount = trade
+                        .get_spl_balance(&token_in)
+                        .await
+                        .unwrap_or_default();
                     info!(balance=?amount,token_in=slp_amount, "recver token wait to trade");
 
                     if let Ok(dex_info) = dexscreen::search(text).await {
@@ -229,7 +246,7 @@ Renounced✅ | LP Burnt✅ | Freeze❄️✅
                             .parse_mode(ParseMode::Markdown)
                             .await?;
                     } else {
-                        let message_text = format!("Token Not found");
+                        let message_text = "Token Not found".to_string();
                         bot.send_message(msg.chat.id, message_text).await?;
                     }
                 }
@@ -243,17 +260,37 @@ Renounced✅ | LP Burnt✅ | Freeze❄️✅
     Ok(())
 }
 
-pub fn make_inline_keyboard_for_buy_or_sell(address: &str) -> InlineKeyboardMarkup {
+pub fn make_inline_keyboard_for_buy_or_sell(
+    address: &str,
+) -> InlineKeyboardMarkup {
     InlineKeyboardMarkup::new(vec![
         vec![
-            InlineKeyboardButton::callback("Buy 0.01".to_string(), "Buy1|".to_string() + address),
-            InlineKeyboardButton::callback("Buy 0.1".to_string(), "Buy10|".to_string() + address),
-            InlineKeyboardButton::callback("Buy 1".to_string(), "Buy100|".to_string() + address),
+            InlineKeyboardButton::callback(
+                "Buy 0.01".to_string(),
+                "Buy1|".to_string() + address,
+            ),
+            InlineKeyboardButton::callback(
+                "Buy 0.1".to_string(),
+                "Buy10|".to_string() + address,
+            ),
+            InlineKeyboardButton::callback(
+                "Buy 1".to_string(),
+                "Buy100|".to_string() + address,
+            ),
         ],
         vec![
-            InlineKeyboardButton::callback("Sell 25%".to_string(), "Sell25|".to_string() + address),
-            InlineKeyboardButton::callback("Sell 50%".to_string(), "Sell50|".to_string() + address),
-            InlineKeyboardButton::callback("Sell 75%".to_string(), "Sell75|".to_string() + address),
+            InlineKeyboardButton::callback(
+                "Sell 25%".to_string(),
+                "Sell25|".to_string() + address,
+            ),
+            InlineKeyboardButton::callback(
+                "Sell 50%".to_string(),
+                "Sell50|".to_string() + address,
+            ),
+            InlineKeyboardButton::callback(
+                "Sell 75%".to_string(),
+                "Sell75|".to_string() + address,
+            ),
         ],
         vec![InlineKeyboardButton::callback(
             "Sell 100%".to_string(),
@@ -263,9 +300,7 @@ pub fn make_inline_keyboard_for_buy_or_sell(address: &str) -> InlineKeyboardMark
 }
 
 async fn callback_handler(
-    bot: Bot,
-    q: CallbackQuery,
-    db: Arc<PGPool>,
+    bot: Bot, q: CallbackQuery, db: Arc<PGPool>,
     app_state: Arc<RwLock<AppState>>,
 ) -> Result<(), Box<dyn Error + Send + Sync>> {
     if let Some(chose) = q.data {
@@ -275,13 +310,15 @@ async fn callback_handler(
         let com = chose.trim().split('|').collect::<Vec<&str>>();
         let action = com.first().unwrap();
 
-        let user = fetch_user(q.from.id.0 as i64, db.clone(), app_state.clone())
-            .await
-            .unwrap();
+        let user =
+            fetch_user(q.from.id.0 as i64, db.clone(), app_state.clone())
+                .await
+                .unwrap();
 
         //TODO global the rpc client
         let client = RpcClient::new("https://alien-winter-orb.solana-mainnet.quiknode.pro/9c31f4035d451695084d9d94948726ea43683107/".to_string());
-        let trade = Trade::new(Keypair::from_base58_string(&user.private_key), client);
+        let trade =
+            Trade::new(Keypair::from_base58_string(&user.private_key), client);
 
         if com.len() >= 2 {
             // FIX: we should check actions first and then do the job
@@ -298,91 +335,104 @@ async fn callback_handler(
                 .to_owned();
 
             // only pair the pair info.
-            let (pair_address, token_in, token_out, amount, maybe_msg) = match *action {
-                "Buy" => (
-                    Pubkey::from_str(&pair.pair_address).ok(),
-                    Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
-                    Pubkey::from_str(token_str).ok(),
-                    com.get(2).unwrap().parse().unwrap(), //FIXME: hardcode for input amount
-                    None::<String>,
-                ),
-                "Buy1" => (
-                    Pubkey::from_str(&pair.pair_address).ok(),
-                    Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
-                    Pubkey::from_str(token_str).ok(),
-                    10_000_000,
-                    None::<String>,
-                ),
-                "Buy10" => (
-                    Pubkey::from_str(&pair.pair_address).ok(),
-                    Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
-                    Pubkey::from_str(token_str).ok(),
-                    100_000_000,
-                    None::<String>,
-                ),
-                "Buy100" => (
-                    Pubkey::from_str(&pair.pair_address).ok(),
-                    Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
-                    Pubkey::from_str(token_str).ok(),
-                    1_000_000_000,
-                    None::<String>,
-                ),
-                "Sell25" => {
-                    let token = Pubkey::from_str(token_str).unwrap();
-                    let token_balance = trade.get_spl_balance(&token).await.unwrap_or_default();
-
-                    (
+            let (pair_address, token_in, token_out, amount, maybe_msg) =
+                match *action {
+                    "Buy" => (
                         Pubkey::from_str(&pair.pair_address).ok(),
-                        Pubkey::from_str(token_str).ok(),
                         Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
-                        token_balance * 25 / 100,
+                        Pubkey::from_str(token_str).ok(),
+                        com.get(2).unwrap().parse().unwrap(), /* FIXME: hardcode for input amount */
                         None::<String>,
-                    )
-                }
-                "Sell50" => {
-                    let token = Pubkey::from_str(token_str).unwrap();
-                    let token_balance = trade.get_spl_balance(&token).await.unwrap_or_default();
-
-                    (
+                    ),
+                    "Buy1" => (
                         Pubkey::from_str(&pair.pair_address).ok(),
-                        Pubkey::from_str(token_str).ok(),
                         Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
-                        token_balance * 50 / 100,
+                        Pubkey::from_str(token_str).ok(),
+                        10_000_000,
                         None::<String>,
-                    )
-                }
-                "Sell75" => {
-                    let token = Pubkey::from_str(token_str).unwrap();
-                    let token_balance = trade.get_spl_balance(&token).await.unwrap_or_default();
-
-                    (
+                    ),
+                    "Buy10" => (
                         Pubkey::from_str(&pair.pair_address).ok(),
-                        Pubkey::from_str(token_str).ok(),
                         Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
-                        token_balance * 75 / 100,
+                        Pubkey::from_str(token_str).ok(),
+                        100_000_000,
                         None::<String>,
-                    )
-                }
-                "Sell100" => {
-                    let token = Pubkey::from_str(token_str).unwrap();
-                    let token_balance = trade.get_spl_balance(&token).await.unwrap_or_default();
-
-                    (
+                    ),
+                    "Buy100" => (
                         Pubkey::from_str(&pair.pair_address).ok(),
-                        Pubkey::from_str(token_str).ok(),
                         Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
-                        token_balance,
+                        Pubkey::from_str(token_str).ok(),
+                        1_000_000_000,
                         None::<String>,
-                    )
-                }
-                _ => (
-                    Pubkey::from_str(&pair.pair_address).ok(),
-                    Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
-                    Pubkey::from_str(token_str).ok(),
-                    0,
-                    None,
-                ),
-            };
+                    ),
+                    "Sell25" => {
+                        let token = Pubkey::from_str(token_str).unwrap();
+                        let token_balance = trade
+                            .get_spl_balance(&token)
+                            .await
+                            .unwrap_or_default();
+
+                        (
+                            Pubkey::from_str(&pair.pair_address).ok(),
+                            Pubkey::from_str(token_str).ok(),
+                            Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
+                            token_balance * 25 / 100,
+                            None::<String>,
+                        )
+                    }
+                    "Sell50" => {
+                        let token = Pubkey::from_str(token_str).unwrap();
+                        let token_balance = trade
+                            .get_spl_balance(&token)
+                            .await
+                            .unwrap_or_default();
+
+                        (
+                            Pubkey::from_str(&pair.pair_address).ok(),
+                            Pubkey::from_str(token_str).ok(),
+                            Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
+                            token_balance * 50 / 100,
+                            None::<String>,
+                        )
+                    }
+                    "Sell75" => {
+                        let token = Pubkey::from_str(token_str).unwrap();
+                        let token_balance = trade
+                            .get_spl_balance(&token)
+                            .await
+                            .unwrap_or_default();
+
+                        (
+                            Pubkey::from_str(&pair.pair_address).ok(),
+                            Pubkey::from_str(token_str).ok(),
+                            Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
+                            token_balance * 75 / 100,
+                            None::<String>,
+                        )
+                    }
+                    "Sell100" => {
+                        let token = Pubkey::from_str(token_str).unwrap();
+                        let token_balance = trade
+                            .get_spl_balance(&token)
+                            .await
+                            .unwrap_or_default();
+
+                        (
+                            Pubkey::from_str(&pair.pair_address).ok(),
+                            Pubkey::from_str(token_str).ok(),
+                            Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
+                            token_balance,
+                            None::<String>,
+                        )
+                    }
+                    _ => (
+                        Pubkey::from_str(&pair.pair_address).ok(),
+                        Pubkey::from_str(constants::SOLANA_PROGRAM_ID).ok(),
+                        Pubkey::from_str(token_str).ok(),
+                        0,
+                        None,
+                    ),
+                };
 
             let text = if pair_address.is_some()
                 && token_in.is_some()
@@ -404,7 +454,10 @@ async fn callback_handler(
                     .is_ok()
                 {
                     let swap_token = Pubkey::from_str(token_str).unwrap();
-                    let amount = trade.get_spl_balance(&swap_token).await.unwrap_or_default();
+                    let amount = trade
+                        .get_spl_balance(&swap_token)
+                        .await
+                        .unwrap_or_default();
 
                     insert_or_update_hold_coin(
                         user.id,
@@ -434,7 +487,8 @@ async fn callback_handler(
             match *action {
                 "CA" | "ca" => {
                     let text = "✅Send Coin Address to start trading tokens. exmpale(xbwxiwmqni4aqs41xdztsrvfn62crbojsicgxm******)";
-                    // Edit text of the message to which the buttons were attached
+                    // Edit text of the message to which the buttons were
+                    // attached
                     if let Some(Message { id, chat, .. }) = q.message {
                         bot.send_message(chat.id, text).await?;
                     } else if let Some(id) = q.inline_message_id {
@@ -443,7 +497,8 @@ async fn callback_handler(
                 }
                 "BuySell" => {
                     let text = "✅Send Coin Address to start trading tokens. exmpale(xbwxiwmqni4aqs41xdztsrvfn62crbojsicgxm******)";
-                    // Edit text of the message to which the buttons were attached
+                    // Edit text of the message to which the buttons were
+                    // attached
                     if let Some(Message { id, chat, .. }) = q.message {
                         bot.send_message(chat.id, text).await?;
                     } else if let Some(id) = q.inline_message_id {
@@ -452,27 +507,35 @@ async fn callback_handler(
                 }
                 "Assets" => {
                     //let text = "✅Send Coin Address to start trading tokens. exmpale(xbwxiwmqni4aqs41xdztsrvfn62crbojsicgxm******)";
-                    // Edit text of the message to which the buttons were attached
+                    // Edit text of the message to which the buttons were
+                    // attached
                     if let Some(Message { id, chat, .. }) = q.message {
                         //TODO: fetch all hold Coin
-                        let hold_coins =
-                            HoldCoin::fetch_all(&mut db.get().unwrap(), user.id as i32)?;
+                        let hold_coins = HoldCoin::fetch_all(
+                            &mut db.get().unwrap(),
+                            user.id as i32,
+                        )?;
                         for hold_coin in hold_coins {
-                            let swap_token = Pubkey::from_str(&hold_coin.token_b).unwrap();
+                            let swap_token =
+                                Pubkey::from_str(&hold_coin.token_b).unwrap();
 
-                            let amount =
-                                trade.get_spl_balance(&swap_token).await.unwrap_or_default();
+                            let amount = trade
+                                .get_spl_balance(&swap_token)
+                                .await
+                                .unwrap_or_default();
 
                             let text = format!(
                                 "Token: {} amount: {} \n More token info is coming",
                                 hold_coin.token_b,
-                                amount as f64 / 1000_000_000.0
+                                amount as f64 / 1_000_000_000.0
                             );
 
                             bot.send_message(chat.id, text)
-                                .reply_markup(make_inline_keyboard_for_buy_or_sell(
-                                    &hold_coin.token_b,
-                                ))
+                                .reply_markup(
+                                    make_inline_keyboard_for_buy_or_sell(
+                                        &hold_coin.token_b,
+                                    ),
+                                )
                                 .await?;
                         }
                         //bot.edit_message_text(chat.id, id, text).await?;
@@ -483,7 +546,8 @@ async fn callback_handler(
                 }
                 _ => {
                     let text = "command not found";
-                    // Edit text of the message to which the buttons were attached
+                    // Edit text of the message to which the buttons were
+                    // attached
                     if let Some(Message { id, chat, .. }) = q.message {
                         bot.send_message(chat.id, text).await?;
                     } else if let Some(id) = q.inline_message_id {
@@ -498,11 +562,7 @@ async fn callback_handler(
 }
 
 async fn insert_or_update_hold_coin(
-    user_id: i64,
-    db: Arc<PGPool>,
-    lp: &str,
-    swap_token: &str,
-    amount: &str,
+    user_id: i64, db: Arc<PGPool>, lp: &str, swap_token: &str, amount: &str,
 ) -> Result<()> {
     let hold = HoldCoin::new(
         user_id as i32,
@@ -513,35 +573,39 @@ async fn insert_or_update_hold_coin(
         "0".to_string(),
     );
 
-    models::hold_coin::HoldCoin::create_or_update(&mut db.get().unwrap(), &hold)?;
+    models::hold_coin::HoldCoin::create_or_update(
+        &mut db.get().unwrap(),
+        &hold,
+    )?;
 
     Ok(())
 }
 
 async fn fetch_user(
-    user_id: i64,
-    db: Arc<PGPool>,
-    app_state: Arc<RwLock<AppState>>,
+    user_id: i64, db: Arc<PGPool>, app_state: Arc<RwLock<AppState>>,
 ) -> Result<User> {
     let mut app_state = app_state.write().await;
 
-    if app_state.users.contains_key(&user_id) {
-        Ok(app_state.users.get(&user_id).unwrap().clone())
-    } else {
+    if let std::collections::hash_map::Entry::Vacant(e) =
+        app_state.users.entry(user_id)
+    {
         // Query default wallet from the database
         match Wallet::fetch_default_with_id(&mut db.get().unwrap(), user_id) {
             Ok(wallet) => {
                 let user = User {
                     id: wallet.id as i64,
                     uid: user_id,
-                    username: "NewUser".to_string(), // Placeholder, should fetch actual username from Telegram API
-                    wallet_address: Pubkey::from_str(&wallet.wallet_address).unwrap(),
+                    username: "NewUser".to_string(), /* Placeholder, should
+                                                      * fetch actual username
+                                                      * from Telegram API */
+                    wallet_address: Pubkey::from_str(&wallet.wallet_address)
+                        .unwrap(),
                     private_key: wallet.private_key.clone(),
-                    slippage: wallet.slippage.into(),
-                    tip: wallet.tip.into(),
+                    slippage: wallet.slippage,
+                    tip: wallet.tip,
                 };
 
-                app_state.users.insert(user_id, user.clone());
+                e.insert(user.clone());
                 Ok(user)
             }
             Err(_) => {
@@ -551,7 +615,9 @@ async fn fetch_user(
                 let mut new_user = User {
                     id: 0,
                     uid: user_id,
-                    username: "NewUser".to_string(), // Placeholder, should fetch actual username from Telegram API
+                    username: "NewUser".to_string(), /* Placeholder, should
+                                                      * fetch actual username
+                                                      * from Telegram API */
                     wallet_address: keypair.pubkey(),
                     private_key: keypair.to_base58_string(),
                     slippage: 800,
@@ -567,16 +633,21 @@ async fn fetch_user(
 
                 wallet.create(&mut db.get().unwrap())?;
 
-                if let Ok(wallet) = Wallet::fetch_default_with_id(&mut db.get().unwrap(), user_id) {
+                if let Ok(wallet) = Wallet::fetch_default_with_id(
+                    &mut db.get().unwrap(),
+                    user_id,
+                ) {
                     new_user.id = wallet.id as i64;
                 }
 
                 // Update the in-memory state
-                app_state.users.insert(user_id, new_user.clone());
+                e.insert(new_user.clone());
 
                 Ok(new_user)
             }
         }
+    } else {
+        Ok(app_state.users.get(&user_id).unwrap().clone())
     }
 }
 

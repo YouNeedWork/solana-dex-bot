@@ -1,19 +1,23 @@
 use anyhow::Result;
-use jito_protos::searcher::searcher_service_client::SearcherServiceClient;
-use jito_protos::searcher::{NextScheduledLeaderRequest, SubscribeBundleResultsRequest};
-use jito_searcher_client::send_bundle_with_confirmation;
-use jito_searcher_client::BlockEngineConnectionResult;
-use std::str::FromStr;
-use std::time::Duration;
+use jito_protos::searcher::{
+    searcher_service_client::SearcherServiceClient, NextScheduledLeaderRequest,
+    SubscribeBundleResultsRequest,
+};
+use jito_searcher_client::{
+    send_bundle_with_confirmation, BlockEngineConnectionResult,
+};
+use std::{str::FromStr, time::Duration};
 use tonic::transport::Endpoint;
 
 use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signature::Keypair;
-use solana_sdk::signer::Signer;
-use solana_sdk::system_instruction::transfer;
-use solana_sdk::transaction::Transaction;
-use solana_sdk::{instruction::Instruction, transaction::VersionedTransaction};
+use solana_sdk::{
+    instruction::Instruction,
+    pubkey::Pubkey,
+    signature::Keypair,
+    signer::Signer,
+    system_instruction::transfer,
+    transaction::{Transaction, VersionedTransaction},
+};
 use tonic::transport::Channel;
 use tracing::{error, info};
 
@@ -21,16 +25,22 @@ use crate::constants;
 
 pub type SearcherClient = SearcherServiceClient<Channel>;
 
-pub async fn get_searcher_client(block_engine_url: &str) -> Result<SearcherServiceClient<Channel>> {
+pub async fn get_searcher_client(
+    block_engine_url: &str,
+) -> Result<SearcherServiceClient<Channel>> {
     let searcher_channel = create_grpc_channel(block_engine_url).await?;
     let searcher_client = SearcherServiceClient::new(searcher_channel);
     Ok(searcher_client)
 }
 
-pub async fn create_grpc_channel(url: &str) -> BlockEngineConnectionResult<Channel> {
-    let mut endpoint = Endpoint::from_shared(url.to_string()).expect("invalid url");
+pub async fn create_grpc_channel(
+    url: &str,
+) -> BlockEngineConnectionResult<Channel> {
+    let mut endpoint =
+        Endpoint::from_shared(url.to_string()).expect("invalid url");
     if url.starts_with("https") {
-        endpoint = endpoint.tls_config(tonic::transport::ClientTlsConfig::new())?;
+        endpoint =
+            endpoint.tls_config(tonic::transport::ClientTlsConfig::new())?;
     }
     Ok(endpoint.connect().await?)
 }
@@ -41,7 +51,9 @@ pub async fn wait_leader(
     let mut is_leader_slot = false;
     while !is_leader_slot {
         let next_leader = searcher_client
-            .get_next_scheduled_leader(NextScheduledLeaderRequest { regions: vec![] })
+            .get_next_scheduled_leader(NextScheduledLeaderRequest {
+                regions: vec![],
+            })
             .await
             .expect("gets next scheduled leader")
             .into_inner();
@@ -62,11 +74,8 @@ pub async fn wait_leader(
 }
 
 pub async fn send_swap_tx(
-    ixs: &mut Vec<Instruction>,
-    tip: u64,
-    payer: &Keypair,
-    searcher_client: &mut SearcherClient,
-    rpc_client: &RpcClient,
+    ixs: &mut Vec<Instruction>, tip: u64, payer: &Keypair,
+    searcher_client: &mut SearcherClient, rpc_client: &RpcClient,
 ) -> Result<()> {
     let mut bundle_results_subscription = searcher_client
         .subscribe_bundle_results(SubscribeBundleResultsRequest {})
@@ -86,12 +95,13 @@ pub async fn send_swap_tx(
         tip,
     ));
 
-    let swap_tx = VersionedTransaction::from(Transaction::new_signed_with_payer(
-        ixs.as_slice(),
-        Some(&payer.pubkey()),
-        &[payer],
-        blockhash,
-    ));
+    let swap_tx =
+        VersionedTransaction::from(Transaction::new_signed_with_payer(
+            ixs.as_slice(),
+            Some(&payer.pubkey()),
+            &[payer],
+            blockhash,
+        ));
 
     send_bundle_with_confirmation(
         &[swap_tx],

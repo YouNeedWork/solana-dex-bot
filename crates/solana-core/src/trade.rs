@@ -1,16 +1,18 @@
-use crate::{constants, dexscreen, jito};
+use crate::{constants, jito};
 
 use anyhow::Result;
 use raydium_library::amm;
-use solana_client::nonblocking::rpc_client::RpcClient;
-use solana_client::rpc_request::TokenAccountsFilter;
-use solana_sdk::instruction::Instruction;
-use solana_sdk::program_pack::Pack;
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::signer::{keypair::Keypair, Signer};
+use solana_client::{
+    nonblocking::rpc_client::RpcClient, rpc_request::TokenAccountsFilter,
+};
+use solana_sdk::{
+    instruction::Instruction,
+    program_pack::Pack,
+    pubkey::Pubkey,
+    signer::{keypair::Keypair, Signer},
+};
 use spl_token::state::Account;
-use std::str::FromStr;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 use tracing::trace;
 
 use solana_sdk::system_instruction::transfer;
@@ -38,14 +40,19 @@ impl Trade {
     pub async fn get_spl_balance(&self, mint: &Pubkey) -> Result<u64> {
         let token_accounts = self
             .rpc
-            .get_token_accounts_by_owner(&self.keypair.pubkey(), TokenAccountsFilter::Mint(*mint))
+            .get_token_accounts_by_owner(
+                &self.keypair.pubkey(),
+                TokenAccountsFilter::Mint(*mint),
+            )
             .await?;
 
         match token_accounts.first() {
             Some(token_account) => {
                 let acount_info = self
                     .rpc
-                    .get_account(&Pubkey::from_str(token_account.pubkey.as_str())?)
+                    .get_account(&Pubkey::from_str(
+                        token_account.pubkey.as_str(),
+                    )?)
                     .await?;
                 let token_account_info = Account::unpack(&acount_info.data)?;
                 trace!("Token account info: {:?}", token_account_info);
@@ -60,18 +67,16 @@ impl Trade {
     }
 
     pub async fn swap(
-        &self,
-        amm_pool_id: Pubkey,
-        input_token_mint: Pubkey,
-        output_token_mint: Pubkey,
-        amount_specified: u64,
-        slippage_bps: u64,
-        tip: u64,
-        budget: u32,
+        &self, amm_pool_id: Pubkey, input_token_mint: Pubkey,
+        output_token_mint: Pubkey, amount_specified: u64, slippage_bps: u64,
+        tip: u64, budget: u32,
     ) -> Result<()> {
-        let amm_program = Pubkey::from_str(constants::RAYDIUM_LIQUIDITY_POOL_V4_PUBKEY)?;
+        let amm_program =
+            Pubkey::from_str(constants::RAYDIUM_LIQUIDITY_POOL_V4_PUBKEY)?;
         let swap_base_in = true;
-        let amm_keys = amm::utils::load_amm_keys(&self.rpc, &amm_program, &amm_pool_id).await?;
+        let amm_keys =
+            amm::utils::load_amm_keys(&self.rpc, &amm_program, &amm_pool_id)
+                .await?;
 
         let market_keys = amm::openbook::get_keys_for_market(
             &self.rpc,
@@ -80,7 +85,8 @@ impl Trade {
         )
         .await?;
 
-        // calculate amm pool vault with load data at the same time or use simulate to calculate
+        // calculate amm pool vault with load data at the same time or use
+        // simulate to calculate
         let result = amm::calculate_pool_vault_amounts(
             &self.rpc,
             &amm_program,
@@ -166,8 +172,7 @@ impl Trade {
             fee,
         ));
 
-        use solana_sdk::transaction::Transaction;
-        use solana_sdk::transaction::VersionedTransaction;
+        use solana_sdk::transaction::{Transaction, VersionedTransaction};
 
         use solana_program::message::Message;
         let blockhash = self.rpc.get_latest_blockhash().await?;
@@ -185,17 +190,26 @@ impl Trade {
 
         let sim_res = self.rpc.simulate_transaction(&tx).await?;
         dbg!(sim_res);
-        //jito::send_swap_tx([tx], 50000, &self.keypair, searcher_client, &self.rpc);
-        // let res = self.rpc.send_and_confirm_transaction(&tx).await?;
+        //jito::send_swap_tx([tx], 50000, &self.keypair, searcher_client,
+        // &self.rpc); let res = self.rpc.send_and_confirm_transaction(&
+        // tx).await?;
 
-        let mut jito_client =
-            jito::get_searcher_client(&"https://frankfurt.mainnet.block-engine.jito.wtf").await?;
+        let mut jito_client = jito::get_searcher_client(
+            "https://frankfurt.mainnet.block-engine.jito.wtf",
+        )
+        .await?;
 
         let mut times = 3;
         while times > 0 {
-            if jito::send_swap_tx(&mut txs, tip, &self.keypair, &mut jito_client, &self.rpc)
-                .await
-                .is_err()
+            if jito::send_swap_tx(
+                &mut txs,
+                tip,
+                &self.keypair,
+                &mut jito_client,
+                &self.rpc,
+            )
+            .await
+            .is_err()
             {
                 times -= 1;
             } else {
@@ -214,9 +228,7 @@ impl Trade {
 }
 
 pub fn create_ata_token_or_not(
-    funding: &Pubkey,
-    mint: &Pubkey,
-    owner: &Pubkey,
+    funding: &Pubkey, mint: &Pubkey, owner: &Pubkey,
 ) -> Vec<Instruction> {
     vec![
         spl_associated_token_account::instruction::create_associated_token_account_idempotent(
@@ -229,15 +241,13 @@ pub fn create_ata_token_or_not(
 }
 
 pub fn close_account(
-    close_account: &Pubkey,
-    destination: &Pubkey,
-    close_authority: &Pubkey,
+    close_account: &Pubkey, destination: &Pubkey, close_authority: &Pubkey,
 ) -> Vec<Instruction> {
     vec![spl_token::instruction::close_account(
         &spl_token::id(),
         close_account,
         destination,
-        &close_authority,
+        close_authority,
         &[],
     )
     .unwrap()]
@@ -251,12 +261,8 @@ pub fn make_compute_budget_ixs(price: u64, max_units: u32) -> Vec<Instruction> {
 }
 
 pub fn create_init_token(
-    token: &Pubkey,
-    seed: &str,
-    mint: &Pubkey,
-    owner: &Pubkey,
-    funding: &Pubkey,
-    lamports: u64,
+    token: &Pubkey, seed: &str, mint: &Pubkey, owner: &Pubkey,
+    funding: &Pubkey, lamports: u64,
 ) -> Vec<Instruction> {
     vec![
         solana_sdk::system_instruction::create_account_with_seed(
@@ -268,7 +274,13 @@ pub fn create_init_token(
             spl_token::state::Account::LEN as u64,
             &spl_token::id(),
         ),
-        spl_token::instruction::initialize_account(&spl_token::id(), token, mint, owner).unwrap(),
+        spl_token::instruction::initialize_account(
+            &spl_token::id(),
+            token,
+            mint,
+            owner,
+        )
+        .unwrap(),
     ]
 }
 
@@ -282,29 +294,30 @@ pub struct Swap {
 }
 
 pub async fn handle_token_account(
-    swap: &mut Swap,
-    client: &RpcClient,
-    mint: &Pubkey,
-    amount: u64,
-    owner: &Pubkey,
-    funding: &Pubkey,
+    swap: &mut Swap, client: &RpcClient, mint: &Pubkey, amount: u64,
+    owner: &Pubkey, funding: &Pubkey,
 ) -> Result<Pubkey> {
     // two cases - an account is a token account or a native account (WSOL)
     if (*mint).to_string() == "So11111111111111111111111111111111111111112" {
         let rent = client
-            .get_minimum_balance_for_rent_exemption(spl_token::state::Account::LEN)
+            .get_minimum_balance_for_rent_exemption(
+                spl_token::state::Account::LEN,
+            )
             .await?;
         let lamports = rent + amount;
         let seed = &Keypair::new().pubkey().to_string()[0..32];
         let token = generate_pub_key(owner, seed);
-        let mut init_ixs = create_init_token(&token, seed, mint, owner, funding, lamports);
+        let mut init_ixs =
+            create_init_token(&token, seed, mint, owner, funding, lamports);
         let mut close_ixs = close_account(&token, owner, owner);
         // swap.signers.push(token);
         swap.pre_swap_instructions.append(&mut init_ixs);
         swap.post_swap_instructions.append(&mut close_ixs);
         Ok(token)
     } else {
-        let token = &spl_associated_token_account::get_associated_token_address(owner, mint);
+        let token = &spl_associated_token_account::get_associated_token_address(
+            owner, mint,
+        );
         let mut ata_ixs = create_ata_token_or_not(funding, mint, owner);
         swap.pre_swap_instructions.append(&mut ata_ixs);
         Ok(*token)

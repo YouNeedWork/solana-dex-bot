@@ -5,7 +5,5 @@ pub struct BuyAction<'a> {
 }
 
 impl<'a> BuyAction<'a> {
-    pub fn new(user: &'a User) -> Self {
-        Self { user }
-    }
+    pub fn new(user: &'a User) -> Self { Self { user } }
 }

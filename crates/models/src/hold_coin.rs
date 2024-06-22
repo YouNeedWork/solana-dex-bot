@@ -1,4 +1,4 @@
-use crate::schema::hold_coins::{self, wallet_id};
+use crate::schema::hold_coins::{self};
 use anyhow::Result;
 use diesel::prelude::*;
 use serde::{Deserialize, Serialize};
@@ -32,12 +32,8 @@ pub struct HoldCoin {
 
 impl HoldCoin {
     pub fn new(
-        w_id: i32,
-        token_a: String,
-        token_b: String,
-        lp: String,
-        amount: String,
-        avg_price: String,
+        w_id: i32, token_a: String, token_b: String, lp: String,
+        amount: String, avg_price: String,
     ) -> Self {
         Self {
             wallet_id: w_id,
@@ -51,14 +47,18 @@ impl HoldCoin {
         }
     }
 
-    pub fn create(&self, conn: &mut PgConnection) -> Result<(), diesel::result::Error> {
+    pub fn create(
+        &self, conn: &mut PgConnection,
+    ) -> Result<(), diesel::result::Error> {
         diesel::insert_into(hold_coins::table)
             .values(self)
             .execute(conn)?;
         Ok(())
     }
 
-    pub fn create_or_update(conn: &mut PgConnection, new_record: &HoldCoin) -> Result<usize> {
+    pub fn create_or_update(
+        conn: &mut PgConnection, new_record: &HoldCoin,
+    ) -> Result<usize> {
         use crate::schema::hold_coins::dsl::*;
 
         diesel::insert_into(hold_coins)
@@ -70,7 +70,9 @@ impl HoldCoin {
             .map_err(Into::into)
     }
 
-    pub fn fetch_all(conn: &mut PgConnection, fetch_wallet_id: i32) -> Result<Vec<HoldCoinQuery>> {
+    pub fn fetch_all(
+        conn: &mut PgConnection, fetch_wallet_id: i32,
+    ) -> Result<Vec<HoldCoinQuery>> {
         use crate::schema::hold_coins::dsl::*;
 
         hold_coins
