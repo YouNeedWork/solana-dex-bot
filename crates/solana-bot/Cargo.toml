@@ -33,3 +33,5 @@ sentry-tracing = { workspace = true }
 rust-i18n = "3"
 diesel = { workspace = true }
 rand = "0.7.3"
+lapin = "2.3.4"
+futures = "0.3"
