@@ -1,17 +1,21 @@
 use anyhow::Result;
+use axum::Json;
 use clap::Parser;
 use config::Config;
-use diesel::{pg::PgConnection, r2d2::ConnectionManager};
-
-use solana_bot::{bot, config};
-
-rust_i18n::i18n!("locales");
+use solana_bot::config;
 
 use futures::StreamExt;
 use lapin::options::BasicConsumeOptions;
 use lapin::options::BasicQosOptions;
 use lapin::types::FieldTable;
 use lapin::ConnectionProperties;
+
+use axum::http::StatusCode;
+use axum::routing::post;
+use axum::Router;
+
+use serde::Deserialize;
+use tracing::info;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -26,7 +30,6 @@ async fn main() -> Result<()> {
     .await?;
 
     //TODO: api service for generate unsign message for client,
-
     for _ in 0..5 {
         let channel = conn.create_channel().await?;
         channel.basic_qos(1, BasicQosOptions::default()).await?;
@@ -64,5 +67,30 @@ async fn main() -> Result<()> {
         });
     }
 
+    // build our application with a route
+    let app = Router::new()
+        // `GET /` goes to `root`
+        .route("/trade", post(trade));
+
+    // run our app with hyper, listening globally on port 3000
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+
     Ok(())
+}
+
+#[derive(Deserialize, Debug)]
+struct TradeParams {
+    user_id: i32,
+    token_a: String,
+    token_b: String,
+    amount: u64,
+    tips: u64,
+    gas: Option<u64>,
+}
+
+async fn trade(Json(trade): Json<TradeParams>) -> (StatusCode, ()) {
+    info!("{:?}", trade);
+
+    (StatusCode::CREATED, ())
 }
