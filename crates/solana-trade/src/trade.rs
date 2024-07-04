@@ -11,6 +11,12 @@ pub mod trade_proto {
 #[derive(Debug, Default)]
 pub struct Trade {}
 
+impl Trade {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
 //TODO: Add one channel for do the trade onchain. and wait for success
 /*
 impl Trade {

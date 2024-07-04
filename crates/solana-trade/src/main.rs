@@ -1,5 +1,5 @@
 use anyhow::Result;
-use solana_bot::trade::{
+use solana_trade::trade::{
     trade_proto::trade_service_server::TradeServiceServer, Trade,
 };
 use tonic::transport::Server;
@@ -9,9 +9,9 @@ use tracing::info;
 async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
-    let addr = "[::1]:3000".parse()?;
-    let trade = Trade::default();
+    let trade = Trade::new();
 
+    let addr = "[::1]:3000".parse()?;
     info!("GreeterServer listening on {}", addr);
 
     Server::builder()

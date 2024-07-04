@@ -2,7 +2,7 @@
 members = [
   "crates/models",
   "crates/solana-core",
-  "crates/solana-bot",
+  "crates/solana-trade",
   "crates/workspace-hack",
 ]
 

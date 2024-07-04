@@ -1,5 +1,5 @@
 [package]
-name = "solana-bot"
+name = "solana-trade"
 version = "0.1.0"
 edition = "2021"
 

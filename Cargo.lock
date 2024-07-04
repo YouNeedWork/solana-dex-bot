@@ -5127,39 +5127,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "solana-bot"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap 4.5.7",
- "diesel",
- "futures",
- "jito-protos",
- "jito-searcher-client",
- "lapin",
- "log",
- "models",
- "prost",
- "prost-types",
- "raydium-library",
- "serde",
- "solana-client",
- "solana-core",
- "solana-program",
- "solana-sdk",
- "spl-associated-token-account 2.2.0",
- "spl-token 4.0.0",
- "spl-token-2022 0.9.0",
- "thiserror",
- "tokio",
- "tonic 0.11.0",
- "tonic-build 0.11.0",
- "tracing",
- "tracing-subscriber",
- "workspace-hack",
-]
-
-[[package]]
 name = "solana-clap-utils"
 version = "1.16.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5765,6 +5732,39 @@ dependencies = [
  "solana-sdk",
  "thiserror",
  "tokio",
+]
+
+[[package]]
+name = "solana-trade"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.5.7",
+ "diesel",
+ "futures",
+ "jito-protos",
+ "jito-searcher-client",
+ "lapin",
+ "log",
+ "models",
+ "prost",
+ "prost-types",
+ "raydium-library",
+ "serde",
+ "solana-client",
+ "solana-core",
+ "solana-program",
+ "solana-sdk",
+ "spl-associated-token-account 2.2.0",
+ "spl-token 4.0.0",
+ "spl-token-2022 0.9.0",
+ "thiserror",
+ "tokio",
+ "tonic 0.11.0",
+ "tonic-build 0.11.0",
+ "tracing",
+ "tracing-subscriber",
+ "workspace-hack",
 ]
 
 [[package]]
