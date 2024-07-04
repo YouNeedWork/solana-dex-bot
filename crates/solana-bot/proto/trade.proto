@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package trade;
+
+service TradeService {
+  rpc trade(TradeRequest) returns (TradeReply);
+}
+
+
+message TradeRequest {
+    int32 user_id = 1;
+    string token_a = 2;
+    string token_b = 3;
+    string pool_id = 4;
+    uint64 amount = 5;
+    uint64 tips = 6;
+    uint64 gas = 7;
+}
+
+message TradeReply {
+  int32 code = 1;
+  string message = 2;
+}

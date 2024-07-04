@@ -3,10 +3,12 @@ name = "solana-bot"
 version = "0.1.0"
 edition = "2021"
 
+
+build = "build.rs"
+
 [dependencies]
 anyhow = { workspace = true }
 clap = { workspace = true }
-teloxide = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
 raydium-library = { workspace = true }
@@ -18,22 +20,18 @@ solana-sdk = { workspace = true }
 solana-program = { workspace = true }
 workspace-hack = { version = "0.1", path = "../workspace-hack" }
 log = "0.4.21"
-env_logger = "=0.9.3"
 jito-protos = { workspace = true }
 jito-searcher-client = { workspace = true }
 solana-core = { workspace = true }
 models = { workspace = true }
-opentelemetry = { workspace = true }
-opentelemetry_sdk = { workspace = true }
-opentelemetry-stdout = { workspace = true }
 tracing = { workspace = true }
-tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
-sentry-tracing = { workspace = true }
-rust-i18n = "3"
 diesel = { workspace = true }
-rand = "0.7.3"
 lapin = "2.3.4"
 futures = "0.3"
-axum = "0.7.5"
 serde = { workspace = true }
+tonic = "0.11.0"
+prost = "0.12"
+prost-types = "0.12"
+[build-dependencies]
+tonic-build = "0.11.0"
